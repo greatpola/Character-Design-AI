@@ -1,0 +1,5 @@
+{
+  "name": "Character Studio AI",
+  "description": "Generate and edit professional character design sheets using Gemini 2.5 Flash Image.",
+  "requestFramePermissions": []
+}
