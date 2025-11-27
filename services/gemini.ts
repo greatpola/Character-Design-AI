@@ -13,22 +13,56 @@ export const generateCharacterSheet = async (userPrompt: string): Promise<Genera
     // Create instance per request to ensure we use the latest API key from selection
     const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
+    // Detect if the prompt contains Korean to enforce Hangul rendering
+    const isKorean = /[ㄱ-ㅎ|ㅏ-ㅣ|가-힣]/.test(userPrompt);
+    const textInstruction = isKorean 
+      ? "TEXT RENDERING: Vital. Render the Character Name and Title in clear, legible KOREAN (Hangul). The body text should simulate clean Korean typography layout." 
+      : "TEXT RENDERING: Render text in English.";
+
     // Enhanced prompt to strictly enforce the "Brand Sheet" layout similar to the reference
+    // Added "Style Master" section to ensure uniform quality across generations
     const enhancedPrompt = `
-      Create a comprehensive, professional character brand design sheet (vertical infographic style) for: ${userPrompt}.
-      
-      The image MUST be a cohesive layout on a light/clean background, divided into these 5 specific sections:
-      
-      1. [Top Left] "Character Story": A section with simulated text paragraphs visually representing the character's background story and personality description.
-      2. [Center/Left] "Basic Type": A large, high-quality main 3D render of the character (and sidekick if applicable). Style: 3D Blender/C4D, cute, vibrant lighting.
-      3. [Middle Row] "Turnaround": A technical schematic showing the character from Front, Side, and Back views.
-      4. [Right Side] "Motion": A set of 4-6 smaller variations showing the character in different active poses (running, jumping) and emotions (laughing, surprised).
-      5. [Bottom Section] "Application": Realistic product mockups showing the character applied to merchandise. Must include:
-         - A laptop covered with character stickers.
-         - An acrylic standee.
-         - A notebook or stationery set featuring the character.
-      
-      Style: High-end corporate brand guide, clean composition, soft shadows, 2K resolution.
+      You are an expert Character Designer. Generate a masterpiece quality "Character Brand Sheet" for: ${userPrompt}.
+
+      [ART DIRECTION & STYLE - UNIFORM QUALITY]
+      - Style: Premium 3D Art Toy, Vinyl Figure, Blind Box aesthetic (like Pop Mart).
+      - Rendering: Octane Render / Redshift style, Soft Studio Lighting, Global Illumination.
+      - Material: Matte finish with subtle subsurface scattering (like high-end plastic or resin).
+      - Palette: Cohesive color scheme, pastel background.
+      - Quality: 8k resolution details, sharp focus, no artifacts.
+
+      [COMPOSITION - 5 SECTION VERTICAL LAYOUT]
+      Strictly follow this layout from top to bottom:
+
+      1. [CHARACTER STORY]: 
+         - Top Section.
+         - Large, bold typography for the Name (${textInstruction}).
+         - A clean paragraph block explaining the backstory.
+
+      2. [BASIC TYPE]: 
+         - Upper-Middle Section.
+         - The main Hero Shot of the character.
+         - Front 3/4 view, dynamic but cute pose.
+         - Focus on character design clarity.
+
+      3. [TURNAROUND]: 
+         - Middle Section.
+         - Orthographic views: Front, Side, Back.
+         - Clean background, technical drawing aesthetic.
+         - Must strictly match the Hero character.
+
+      4. [MOTION]: 
+         - Lower-Middle Section.
+         - A collection of 4-5 spot illustrations.
+         - Showing different emotions (Joy, Surprise, Anger) and actions (Running, Jumping).
+
+      5. [APPLICATION]: 
+         - Bottom Section.
+         - Photorealistic Merchandise Mockups.
+         - Show the character applied to: A Laptop (Stickers), An Acrylic Standee, A Notebook.
+         - High-end product photography style.
+
+      Ensure the character design is perfectly consistent across all sections. The final image should look like a professional design presentation.
     `;
 
     const response = await ai.models.generateContent({
@@ -61,6 +95,12 @@ export const editCharacterSheet = async (
   try {
     const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
+    // Detect Korean for editing instructions as well
+    const isKorean = /[ㄱ-ㅎ|ㅏ-ㅣ|가-힣]/.test(editPrompt);
+    const textInstruction = isKorean 
+      ? "Ensure any new text or labels are rendered in clear KOREAN (Hangul)." 
+      : "";
+
     const response = await ai.models.generateContent({
       model: MODEL_NAME,
       contents: {
@@ -73,7 +113,12 @@ export const editCharacterSheet = async (
           },
           {
             text: `Edit this character design sheet. 
-            CRITICAL: Maintain the existing 5-section layout (Story, Basic Type, Turnaround, Motion, Application Mockups).
+            
+            STRICT CONSTRAINTS:
+            - Maintain the existing 5-section layout (Story, Basic, Turnaround, Motion, Mockups).
+            - Keep the character consistent (Same colors, same features).
+            - Style: Premium 3D Art Toy, high-quality render.
+            - ${textInstruction}
             
             Edit instruction: ${editPrompt}`
           }

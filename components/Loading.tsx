@@ -13,12 +13,12 @@ export const Loading: React.FC<LoadingProps> = ({ mode }) => {
       </div>
       <p className="text-lg font-medium text-slate-600 animate-pulse text-center">
         {mode === 'generating' 
-          ? '캐릭터 스토리, 턴어라운드, 굿즈 목업 생성 중...' 
-          : '전체 레이아웃을 유지하며 수정 중...'}
+          ? '한글 타이포그래피 및 굿즈 목업 생성 중...' 
+          : '레이아웃 유지 및 텍스트 최적화 수정 중...'}
       </p>
       <div className="text-sm text-slate-400 text-center space-y-1">
-        <p>Gemini 3 Pro Image가 작업하고 있습니다.</p>
-        <p className="text-xs text-slate-300">Basic Type • Turnaround • Motion • Application</p>
+        <p>Gemini 3 Pro Image가 고해상도 시안을 제작하고 있습니다.</p>
+        <p className="text-xs text-slate-300">Story • Basic • Turnaround • Motion • Application</p>
       </div>
     </div>
   );
