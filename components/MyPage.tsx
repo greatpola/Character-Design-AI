@@ -105,6 +105,10 @@ export const MyPage: React.FC<MyPageProps> = ({ user, onBack, onLogout }) => {
              <span className="text-xs bg-slate-100 text-slate-500 px-2 py-1 rounded-full">
                {user.nickname || user.email}
              </span>
+             <span className={`text-xs px-2 py-1 rounded-full text-white uppercase font-bold
+                ${user.group === 'admin' ? 'bg-slate-800' : 'bg-blue-500'}`}>
+               {user.group}
+             </span>
           </div>
         </div>
         <button 
@@ -130,22 +134,26 @@ export const MyPage: React.FC<MyPageProps> = ({ user, onBack, onLogout }) => {
           </div>
           
           <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex items-center gap-4">
-            <div className="bg-purple-50 p-3 rounded-full text-purple-600">
-              <LogIn className="w-6 h-6" />
-            </div>
-            <div>
-              <p className="text-sm text-slate-500">총 로그인 횟수</p>
-              <p className="text-lg font-bold text-slate-800">{user.loginCount || 1}회</p>
-            </div>
-          </div>
-
-          <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex items-center gap-4">
             <div className="bg-green-50 p-3 rounded-full text-green-600">
               <Activity className="w-6 h-6" />
             </div>
             <div>
-              <p className="text-sm text-slate-500">캐릭터 생성 횟수</p>
-              <p className="text-lg font-bold text-slate-800">{user.usageCount || 0}회</p>
+              <p className="text-sm text-slate-500">생성 횟수</p>
+              <p className="text-lg font-bold text-slate-800">
+                {user.generationCount} / {user.maxGenerations}
+              </p>
+            </div>
+          </div>
+
+          <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex items-center gap-4">
+            <div className="bg-purple-50 p-3 rounded-full text-purple-600">
+              <Activity className="w-6 h-6" />
+            </div>
+            <div>
+              <p className="text-sm text-slate-500">수정 횟수</p>
+              <p className="text-lg font-bold text-slate-800">
+                {user.editCount} / {user.maxEdits}
+              </p>
             </div>
           </div>
         </section>

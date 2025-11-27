@@ -4,7 +4,7 @@ import { User, Message, SeoConfig } from '../types';
 import { userManager } from '../services/userManager';
 import { messageStorage } from '../services/messageStorage';
 import { seoStorage } from '../services/seoStorage';
-import { Users, Trash2, LogOut, ArrowLeft, MessageSquare, Mail, Send, User as UserIcon, Shield, Globe, Save, Link } from 'lucide-react';
+import { Users, Trash2, LogOut, ArrowLeft, MessageSquare, Mail, Send, User as UserIcon, Shield, Globe, Save, Link, Edit, X } from 'lucide-react';
 
 interface AdminDashboardProps {
   onLogout: () => void;
@@ -23,6 +23,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout, onBack
   const [chatHistory, setChatHistory] = useState<Message[]>([]);
   const [replyMessage, setReplyMessage] = useState('');
   const chatEndRef = useRef<HTMLDivElement>(null);
+
+  // User Edit Modal State
+  const [editingUser, setEditingUser] = useState<User | null>(null);
+  const [editForm, setEditForm] = useState({ group: '', maxGenerations: 0, maxEdits: 0 });
 
   // SEO States
   const [seoConfig, setSeoConfig] = useState<SeoConfig>(seoStorage.getSeoConfig());
@@ -66,6 +70,28 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout, onBack
     }
   };
 
+  const openEditModal = (user: User) => {
+    setEditingUser(user);
+    setEditForm({
+      group: user.group || 'basic',
+      maxGenerations: user.maxGenerations || 1,
+      maxEdits: user.maxEdits || 1
+    });
+  };
+
+  const handleSaveUser = async () => {
+    if (editingUser) {
+      await userManager.updateUserLimits(
+        editingUser.email, 
+        editForm.group, 
+        Number(editForm.maxGenerations), 
+        Number(editForm.maxEdits)
+      );
+      setEditingUser(null);
+      loadData();
+    }
+  };
+
   const handleSendReply = (e: React.FormEvent) => {
     e.preventDefault();
     if (!replyMessage.trim() || !selectedSender) return;
@@ -99,7 +125,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout, onBack
     });
   };
 
-  // Helper to find nickname for a given email
   const getNickname = (email: string) => {
     const user = userManager.getUser(email);
     return user ? user.nickname : email;
@@ -188,11 +213,11 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout, onBack
               <table className="w-full text-left">
                 <thead>
                   <tr className="bg-slate-50 text-slate-500 text-sm uppercase tracking-wider">
-                    <th className="px-6 py-4 font-semibold">닉네임</th>
-                    <th className="px-6 py-4 font-semibold">이메일</th>
+                    <th className="px-6 py-4 font-semibold">닉네임 / 이메일</th>
                     <th className="px-6 py-4 font-semibold">가입 일시</th>
-                    <th className="px-6 py-4 font-semibold">마케팅 동의</th>
-                    <th className="px-6 py-4 font-semibold">사용 횟수</th>
+                    <th className="px-6 py-4 font-semibold">그룹</th>
+                    <th className="px-6 py-4 font-semibold">생성 현황</th>
+                    <th className="px-6 py-4 font-semibold">수정 현황</th>
                     <th className="px-6 py-4 font-semibold text-right">관리</th>
                   </tr>
                 </thead>
@@ -206,31 +231,42 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout, onBack
                   ) : (
                     users.map((user) => (
                       <tr key={user.email} className="hover:bg-slate-50 transition-colors">
-                        <td className="px-6 py-4 text-slate-900 font-bold">{user.nickname || '-'}</td>
-                        <td className="px-6 py-4 text-slate-600 font-medium">{user.email}</td>
+                        <td className="px-6 py-4">
+                          <div className="text-slate-900 font-bold">{user.nickname || '-'}</div>
+                          <div className="text-slate-500 text-xs">{user.email}</div>
+                        </td>
                         <td className="px-6 py-4 text-slate-500 text-sm">{formatDate(user.joinedAt)}</td>
                         <td className="px-6 py-4">
-                          {user.marketingAgreed ? (
-                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                              동의함
-                            </span>
-                          ) : (
-                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
-                              미동의
-                            </span>
-                          )}
+                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold uppercase
+                            ${user.group === 'admin' ? 'bg-slate-800 text-white' : 
+                              user.group === 'pro' ? 'bg-purple-100 text-purple-800' : 
+                              'bg-blue-100 text-blue-800'}`}>
+                            {user.group || 'basic'}
+                          </span>
                         </td>
-                        <td className="px-6 py-4 text-slate-800 font-medium">
-                          {user.usageCount || 0}회
+                        <td className="px-6 py-4 text-slate-800 font-medium text-sm">
+                           {user.generationCount || 0} / {user.maxGenerations}회
+                        </td>
+                        <td className="px-6 py-4 text-slate-800 font-medium text-sm">
+                           {user.editCount || 0} / {user.maxEdits}회
                         </td>
                         <td className="px-6 py-4 text-right">
-                          <button
-                            onClick={() => handleDeleteUser(user.email)}
-                            className="text-slate-400 hover:text-red-500 transition-colors p-2 rounded-full hover:bg-red-50"
-                            title="사용자 삭제"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
+                          <div className="flex items-center justify-end gap-2">
+                             <button
+                              onClick={() => openEditModal(user)}
+                              className="text-slate-400 hover:text-blue-500 transition-colors p-2 rounded-full hover:bg-blue-50"
+                              title="정보 수정"
+                            >
+                              <Edit className="w-4 h-4" />
+                            </button>
+                            <button
+                              onClick={() => handleDeleteUser(user.email)}
+                              className="text-slate-400 hover:text-red-500 transition-colors p-2 rounded-full hover:bg-red-50"
+                              title="사용자 삭제"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     ))
@@ -272,9 +308,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout, onBack
                           <span className="font-bold text-slate-800 truncate">{nick}</span>
                         </div>
                         <p className="text-xs text-slate-400 truncate mb-1">{email}</p>
-                        <p className="text-xs text-slate-500 truncate">
-                           대화 내용 보기
-                        </p>
                       </button>
                     );
                   })
@@ -356,6 +389,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout, onBack
 
         {activeTab === 'seo' && (
           <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden animate-in fade-in slide-in-from-bottom-2 duration-300">
+             {/* Same SEO Form as before */}
             <div className="p-6 border-b border-slate-100">
               <h2 className="text-lg font-bold text-slate-800 flex items-center gap-2">
                 <Globe className="w-5 h-5 text-blue-600" />
@@ -366,7 +400,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout, onBack
             
             <form onSubmit={handleSaveSeo} className="p-8 max-w-3xl">
               <div className="space-y-6">
-                
                 <div className="space-y-2">
                   <label className="text-sm font-bold text-slate-700">사이트 제목 (Title)</label>
                   <input
@@ -374,22 +407,16 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout, onBack
                     value={seoConfig.title}
                     onChange={(e) => setSeoConfig({...seoConfig, title: e.target.value})}
                     className="w-full p-3 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
-                    placeholder="예: Character Studio AI"
                   />
-                  <p className="text-xs text-slate-400">브라우저 탭과 검색 결과 제목에 표시됩니다.</p>
                 </div>
-
                 <div className="space-y-2">
                   <label className="text-sm font-bold text-slate-700">설명 (Meta Description)</label>
                   <textarea
                     value={seoConfig.description}
                     onChange={(e) => setSeoConfig({...seoConfig, description: e.target.value})}
                     className="w-full p-3 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none h-24 resize-none"
-                    placeholder="사이트에 대한 간단한 설명을 입력하세요."
                   />
-                  <p className="text-xs text-slate-400">검색 엔진 결과에서 제목 아래에 표시되는 설명입니다.</p>
                 </div>
-
                 <div className="space-y-2">
                   <label className="text-sm font-bold text-slate-700">키워드 (Keywords)</label>
                   <input
@@ -397,11 +424,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout, onBack
                     value={seoConfig.keywords}
                     onChange={(e) => setSeoConfig({...seoConfig, keywords: e.target.value})}
                     className="w-full p-3 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
-                    placeholder="예: AI, 캐릭터, 디자인, 생성형AI"
                   />
-                  <p className="text-xs text-slate-400">쉼표(,)로 구분하여 입력하세요.</p>
                 </div>
-
                 <div className="space-y-2">
                   <label className="text-sm font-bold text-slate-700">작성자 (Author)</label>
                   <input
@@ -411,7 +435,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout, onBack
                     className="w-full p-3 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
                   />
                 </div>
-
                 <div className="space-y-2 pt-4 border-t border-slate-100">
                   <label className="text-sm font-bold text-slate-700 flex items-center gap-2">
                     <Link className="w-4 h-4" />
@@ -422,11 +445,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout, onBack
                     value={seoConfig.supportLink || ''}
                     onChange={(e) => setSeoConfig({...seoConfig, supportLink: e.target.value})}
                     className="w-full p-3 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
-                    placeholder="예: https://buy.stripe.com/..."
                   />
-                  <p className="text-xs text-slate-400">메인 화면의 '개발자 응원하기' 버튼 클릭 시 이동할 URL입니다.</p>
                 </div>
-
                 <div className="pt-4 flex justify-end">
                    <button
                      type="submit"
@@ -436,13 +456,77 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout, onBack
                      설정 저장 및 적용
                    </button>
                 </div>
-
               </div>
             </form>
           </div>
         )}
-
       </main>
+
+      {/* Edit User Modal */}
+      {editingUser && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+            <div className="p-4 border-b border-slate-200 flex justify-between items-center bg-slate-50">
+               <h3 className="font-bold text-slate-800">사용자 권한 설정</h3>
+               <button onClick={() => setEditingUser(null)} className="text-slate-400 hover:text-slate-600">
+                 <X className="w-5 h-5" />
+               </button>
+            </div>
+            <div className="p-6 space-y-4">
+               <div className="space-y-1">
+                 <label className="text-xs font-bold text-slate-500">사용자</label>
+                 <div className="p-2 bg-slate-100 rounded text-sm">{editingUser.email}</div>
+               </div>
+               
+               <div className="space-y-1">
+                 <label className="text-xs font-bold text-slate-500">그룹명 (등급)</label>
+                 <input 
+                   type="text" 
+                   value={editForm.group} 
+                   onChange={(e) => setEditForm({...editForm, group: e.target.value})}
+                   className="w-full p-2 border border-slate-300 rounded focus:ring-2 focus:ring-blue-500 outline-none"
+                   placeholder="basic, pro, vip..."
+                 />
+               </div>
+
+               <div className="grid grid-cols-2 gap-4">
+                 <div className="space-y-1">
+                   <label className="text-xs font-bold text-slate-500">최대 생성 횟수</label>
+                   <input 
+                     type="number" 
+                     value={editForm.maxGenerations} 
+                     onChange={(e) => setEditForm({...editForm, maxGenerations: Number(e.target.value)})}
+                     className="w-full p-2 border border-slate-300 rounded focus:ring-2 focus:ring-blue-500 outline-none"
+                   />
+                 </div>
+                 <div className="space-y-1">
+                   <label className="text-xs font-bold text-slate-500">최대 수정 횟수</label>
+                   <input 
+                     type="number" 
+                     value={editForm.maxEdits} 
+                     onChange={(e) => setEditForm({...editForm, maxEdits: Number(e.target.value)})}
+                     className="w-full p-2 border border-slate-300 rounded focus:ring-2 focus:ring-blue-500 outline-none"
+                   />
+                 </div>
+               </div>
+            </div>
+            <div className="p-4 border-t border-slate-200 flex justify-end gap-2 bg-slate-50">
+               <button 
+                 onClick={() => setEditingUser(null)}
+                 className="px-4 py-2 text-slate-600 hover:bg-slate-200 rounded-lg text-sm font-medium"
+               >
+                 취소
+               </button>
+               <button 
+                 onClick={handleSaveUser}
+                 className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium"
+               >
+                 저장하기
+               </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

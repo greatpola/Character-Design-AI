@@ -27,8 +27,16 @@ export interface User {
   role: UserRole;
   joinedAt: number;
   marketingAgreed?: boolean;
-  usageCount?: number;
   loginCount?: number;
+  
+  // Group and Limits
+  group: string;        // e.g., 'basic', 'pro', 'vip'
+  maxGenerations: number;
+  maxEdits: number;
+  
+  // Usage Tracking
+  generationCount: number; // Replaces generic usageCount
+  editCount: number;
 }
 
 export interface SavedCharacter {

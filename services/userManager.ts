@@ -15,22 +15,9 @@ interface StoredUser extends User {
   password?: string; // Encrypted password
 }
 
-// Fallback logic for when Firebase is not configured or fails
-const useLocalStorage = !process.env.FIREBASE_API_KEY;
-
 // Simple client-side encryption mock
 const encryptData = async (text: string): Promise<string> => {
   return btoa(text);
-};
-
-// We don't really need decrypt for passwords, we just compare hashes (encrypted values)
-// but keeping decrypt for other data if needed.
-const decryptData = async (text: string): Promise<string> => {
-  try {
-    return atob(text);
-  } catch {
-    return text;
-  }
 };
 
 export const userManager = {
@@ -62,7 +49,6 @@ export const userManager = {
   },
 
   checkUserExists(email: string): boolean {
-    // Admin always "exists"
     if (email.trim() === ADMIN_ID) return true;
     return !!this.getStoredUser(email.trim());
   },
@@ -78,6 +64,17 @@ export const userManager = {
     localStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(users));
   },
 
+  // Admin function to update user limits
+  async updateUserLimits(email: string, group: string, maxGenerations: number, maxEdits: number) {
+    const user = this.getStoredUser(email);
+    if (user) {
+      user.group = group;
+      user.maxGenerations = maxGenerations;
+      user.maxEdits = maxEdits;
+      await this.saveStoredUser(user);
+    }
+  },
+
   async registerUser(email: string, password: string, nickname: string): Promise<User> {
     const encryptedPassword = await encryptData(password);
     
@@ -87,14 +84,19 @@ export const userManager = {
       role: 'user',
       joinedAt: Date.now(),
       marketingAgreed: true,
-      usageCount: 0,
-      loginCount: 1, // Initial login
-      password: encryptedPassword
+      loginCount: 1,
+      password: encryptedPassword,
+      
+      // Default Limits for New Users
+      group: 'basic',
+      maxGenerations: 1,
+      maxEdits: 1,
+      generationCount: 0,
+      editCount: 0
     };
     
     await this.saveStoredUser(newUser);
     
-    // Return sanitized user
     const { password: _, ...safeUser } = newUser;
     this.saveSession(safeUser);
     return safeUser;
@@ -105,26 +107,50 @@ export const userManager = {
     localStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(users));
   },
 
-  async incrementUsage(email: string) {
+  // Check if user has enough credits
+  checkLimit(email: string, type: 'generation' | 'edit'): boolean {
+    if (this.isAdmin(email)) return true; // Admins are unlimited
+
+    const user = this.getStoredUser(email);
+    if (!user) return false;
+
+    if (type === 'generation') {
+      return (user.generationCount || 0) < (user.maxGenerations || 0);
+    } else {
+      return (user.editCount || 0) < (user.maxEdits || 0);
+    }
+  },
+
+  async incrementActivity(email: string, type: 'generation' | 'edit') {
+    if (this.isAdmin(email)) return;
+
     const user = this.getStoredUser(email);
     if (user) {
-      user.usageCount = (user.usageCount || 0) + 1;
+      if (type === 'generation') {
+        user.generationCount = (user.generationCount || 0) + 1;
+      } else {
+        user.editCount = (user.editCount || 0) + 1;
+      }
+      
       await this.saveStoredUser(user);
       
-      // Also update session if it matches
       const session = this.getSession();
       if (session && session.email === email) {
-        session.usageCount = user.usageCount;
+        session.generationCount = user.generationCount;
+        session.editCount = user.editCount;
         this.saveSession(session);
       }
     }
   },
 
-  // Auth methods
+  // Fallback alias for backward compatibility or generic usage
+  async incrementUsage(email: string) {
+    return this.incrementActivity(email, 'generation');
+  },
+
   async login(email: string, password: string): Promise<User> {
     const cleanEmail = email.trim();
     
-    // Admin Check
     if (cleanEmail === ADMIN_ID) {
       if (password === ADMIN_PW) {
         const adminUser: User = { 
@@ -132,8 +158,13 @@ export const userManager = {
           nickname: '관리자',
           role: 'admin', 
           joinedAt: Date.now(), 
-          usageCount: 0,
-          loginCount: 0 
+          loginCount: 0,
+          // Admin has infinite limits technically, but we set high numbers for UI
+          group: 'admin',
+          maxGenerations: 9999,
+          maxEdits: 9999,
+          generationCount: 0,
+          editCount: 0
         };
         this.saveSession(adminUser);
         return adminUser;
@@ -142,24 +173,30 @@ export const userManager = {
       }
     }
 
-    // Normal User Check
     let storedUser = this.getStoredUser(cleanEmail);
     
     if (!storedUser) {
        throw new Error('등록되지 않은 사용자입니다. 회원가입을 진행해주세요.');
     }
 
-    // Verify Password
     const encryptedInput = await encryptData(password);
     if (storedUser.password && storedUser.password !== encryptedInput) {
        throw new Error('비밀번호가 일치하지 않습니다.');
     }
 
-    // Legacy support: users created before password feature might not have a password
-    // In a real app, we would force password reset. Here, we might just let them in or update it.
-    // Let's assume strict password check for now.
+    // Migration: Add limit fields to existing users if missing
+    let needsUpdate = false;
+    if (storedUser.group === undefined) { storedUser.group = 'basic'; needsUpdate = true; }
+    if (storedUser.maxGenerations === undefined) { storedUser.maxGenerations = 1; needsUpdate = true; }
+    if (storedUser.maxEdits === undefined) { storedUser.maxEdits = 1; needsUpdate = true; }
+    if (storedUser.generationCount === undefined) { 
+        // Migrate old usageCount if it exists
+        // @ts-ignore
+        storedUser.generationCount = storedUser.usageCount || 0; 
+        needsUpdate = true; 
+    }
+    if (storedUser.editCount === undefined) { storedUser.editCount = 0; needsUpdate = true; }
 
-    // Update stats
     storedUser.loginCount = (storedUser.loginCount || 0) + 1;
     await this.saveStoredUser(storedUser);
 

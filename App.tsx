@@ -11,7 +11,7 @@ import { userManager } from './services/userManager';
 import { characterStorage } from './services/characterStorage';
 import { seoStorage } from './services/seoStorage';
 import { GeneratedImage, AppState, User } from './types';
-import { Download, Wand2, RefreshCw, Send, Image as ImageIcon, Edit3, Settings, LogOut, User as UserIcon, Save, Heart, Zap } from 'lucide-react';
+import { Download, Wand2, RefreshCw, Send, Image as ImageIcon, Edit3, Settings, LogOut, User as UserIcon, Save, Heart, Zap, AlertCircle } from 'lucide-react';
 
 const SUGGESTIONS = [
   "머리에 새싹이 자라난 귀여운 꼬마 로봇, 흰색과 초록색 테마",
@@ -63,7 +63,13 @@ function App() {
   };
 
   const handleGenerate = async () => {
-    if (!prompt.trim()) return;
+    if (!prompt.trim() || !user) return;
+
+    // Check Limits
+    if (!userManager.checkLimit(user.email, 'generation')) {
+      alert(`생성 횟수 한도(${user.maxGenerations}회)를 초과했습니다. 관리자에게 문의하세요.`);
+      return;
+    }
 
     setAppState(AppState.GENERATING);
     setErrorMsg(null);
@@ -75,12 +81,11 @@ function App() {
       setAppState(AppState.SUCCESS);
       
       // Track usage
-      if (user) {
-        userManager.incrementUsage(user.email);
-        // Refresh user data from storage to get updated counts
-        const updatedUser = userManager.getUser(user.email);
-        if(updatedUser) setUser(updatedUser);
-      }
+      await userManager.incrementActivity(user.email, 'generation');
+      // Refresh user data
+      const updatedUser = userManager.getUser(user.email);
+      if(updatedUser) setUser(updatedUser);
+      
     } catch (e) {
       console.error(e);
       setErrorMsg("이미지를 생성하는 도중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.");
@@ -89,7 +94,13 @@ function App() {
   };
 
   const handleEdit = async () => {
-    if (!editPrompt.trim() || !currentImage) return;
+    if (!editPrompt.trim() || !currentImage || !user) return;
+
+    // Check Limits
+    if (!userManager.checkLimit(user.email, 'edit')) {
+      alert(`수정 횟수 한도(${user.maxEdits}회)를 초과했습니다. 관리자에게 문의하세요.`);
+      return;
+    }
 
     setAppState(AppState.EDITING);
     setErrorMsg(null);
@@ -100,12 +111,11 @@ function App() {
       setAppState(AppState.SUCCESS);
       setEditPrompt(''); // Reset edit prompt after success
       
-      // Track usage for edits as well
-      if (user) {
-        userManager.incrementUsage(user.email);
-        const updatedUser = userManager.getUser(user.email);
-        if(updatedUser) setUser(updatedUser);
-      }
+      // Track usage
+      await userManager.incrementActivity(user.email, 'edit');
+      const updatedUser = userManager.getUser(user.email);
+      if(updatedUser) setUser(updatedUser);
+
     } catch (e) {
       console.error(e);
       setErrorMsg("이미지를 수정하는 도중 오류가 발생했습니다. 편집 내용을 조금 더 구체적으로 적어주세요.");
@@ -162,9 +172,23 @@ function App() {
     <div className="min-h-screen bg-slate-50 flex flex-col">
       {/* Header */}
       <div className="bg-white border-b border-slate-200 px-4 py-2 flex justify-between items-center">
-        <div className="text-xs text-slate-400 hidden sm:block">
-           {user.nickname || user.email}님 환영합니다
+        <div className="flex items-center gap-3">
+          <div className="text-xs text-slate-500 hidden sm:block">
+             <span className="font-bold text-slate-700">{user.nickname}</span>님 ({user.group})
+          </div>
+          {user.role !== 'admin' && (
+             <div className="flex items-center gap-2 text-xs bg-slate-100 px-2 py-1 rounded-md">
+                <span className={user.generationCount >= user.maxGenerations ? 'text-red-500 font-bold' : 'text-blue-600'}>
+                  생성 {user.generationCount}/{user.maxGenerations}
+                </span>
+                <span className="text-slate-300">|</span>
+                <span className={user.editCount >= user.maxEdits ? 'text-red-500 font-bold' : 'text-purple-600'}>
+                  수정 {user.editCount}/{user.maxEdits}
+                </span>
+             </div>
+          )}
         </div>
+
         <div className="flex items-center gap-2 ml-auto">
           {user.role === 'admin' && (
             <button
@@ -224,6 +248,14 @@ function App() {
                 <Send className="w-4 h-4" />
               </button>
             </div>
+            
+            {/* Limit Warning */}
+            {user.generationCount >= user.maxGenerations && user.role !== 'admin' && (
+               <div className="flex items-center gap-2 text-sm text-amber-600 bg-amber-50 p-3 rounded-lg">
+                 <AlertCircle className="w-4 h-4" />
+                 <span>생성 횟수를 모두 소모했습니다. 관리자에게 문의하여 충전하세요.</span>
+               </div>
+            )}
             
             {/* Suggestions */}
             <div className="flex flex-wrap gap-2 mt-2">
@@ -329,14 +361,19 @@ function App() {
                         type="text"
                         value={editPrompt}
                         onChange={(e) => setEditPrompt(e.target.value)}
-                        placeholder="예: 모자 색깔을 빨간색으로 바꿔줘, 배경에 나무를 추가해줘"
-                        className="flex-grow p-3 border border-blue-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                        placeholder={
+                            user.editCount >= user.maxEdits 
+                            ? "수정 횟수를 모두 소모했습니다." 
+                            : "예: 모자 색깔을 빨간색으로 바꿔줘, 배경에 나무를 추가해줘"
+                        }
+                        disabled={user.editCount >= user.maxEdits && user.role !== 'admin'}
+                        className="flex-grow p-3 border border-blue-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none disabled:bg-slate-100 disabled:text-slate-400"
                         onKeyDown={(e) => e.key === 'Enter' && handleEdit()}
                       />
                       <button
                         onClick={handleEdit}
-                        disabled={!editPrompt.trim()}
-                        className="bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white px-5 py-3 rounded-lg font-medium transition-colors whitespace-nowrap flex items-center gap-2"
+                        disabled={!editPrompt.trim() || (user.editCount >= user.maxEdits && user.role !== 'admin')}
+                        className="bg-blue-600 hover:bg-blue-700 disabled:bg-slate-300 text-white px-5 py-3 rounded-lg font-medium transition-colors whitespace-nowrap flex items-center gap-2"
                       >
                         <RefreshCw className="w-4 h-4" />
                         수정하기
