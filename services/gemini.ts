@@ -4,10 +4,6 @@ import { GeneratedImage } from "../types";
 // Using the latest Nano Banana 2 (Gemini 3 Pro Image) for high quality character sheets
 const MODEL_NAME = 'gemini-3-pro-image-preview';
 
-// Obfuscated API Key storage to prevent plain-text exposure
-// Reconstructs: AIzaSyB_zJSuz0Xb74T7CLtvBtxMe_GxKh16Hhc
-const _k = [65, 73, 122, 97, 83, 121, 66, 95, 122, 74, 83, 117, 122, 48, 88, 98, 55, 52, 84, 55, 67, 76, 116, 118, 66, 116, 120, 77, 101, 95, 71, 120, 75, 104, 49, 54, 72, 104, 99];
-
 const getApiKey = (): string => {
   // Safe check for process.env to avoid "process is not defined" errors in browser environments
   try {
@@ -19,8 +15,10 @@ const getApiKey = (): string => {
   } catch (e) {
     // ignore error if process is undefined
   }
-  // Fallback to the embedded key if no environment variable is found
-  return String.fromCharCode(..._k);
+  
+  // API Key must be provided via environment variables for security.
+  // Do not hardcode keys in source files.
+  return '';
 };
 
 /**
@@ -28,9 +26,14 @@ const getApiKey = (): string => {
  * Includes: Story, Basic Type, Turnaround, Motion, and Application Mockups.
  */
 export const generateCharacterSheet = async (userPrompt: string): Promise<GeneratedImage> => {
+  const apiKey = getApiKey();
+  if (!apiKey) {
+    throw new Error("API Key가 설정되지 않았습니다. 관리자에게 문의하거나 환경 변수를 확인해주세요.");
+  }
+
   try {
     // Create instance per request using the secure key retrieval
-    const ai = new GoogleGenAI({ apiKey: getApiKey() });
+    const ai = new GoogleGenAI({ apiKey });
 
     // Detect if the prompt contains Korean to enforce Hangul rendering
     const isKorean = /[ㄱ-ㅎ|ㅏ-ㅣ|가-힣]/.test(userPrompt);
@@ -111,8 +114,13 @@ export const editCharacterSheet = async (
   currentImage: GeneratedImage,
   editPrompt: string
 ): Promise<GeneratedImage> => {
+  const apiKey = getApiKey();
+  if (!apiKey) {
+    throw new Error("API Key가 설정되지 않았습니다. 관리자에게 문의하거나 환경 변수를 확인해주세요.");
+  }
+
   try {
-    const ai = new GoogleGenAI({ apiKey: getApiKey() });
+    const ai = new GoogleGenAI({ apiKey });
 
     // Detect Korean for editing instructions as well
     const isKorean = /[ㄱ-ㅎ|ㅏ-ㅣ|가-힣]/.test(editPrompt);
