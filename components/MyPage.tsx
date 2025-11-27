@@ -3,6 +3,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { User, SavedCharacter, Message } from '../types';
 import { characterStorage } from '../services/characterStorage';
 import { messageStorage } from '../services/messageStorage';
+import { ShareMenu } from './ShareMenu';
 import { Calendar, Activity, LogIn, Download, Trash2, ArrowLeft, Image as ImageIcon, Send, MessageSquare, User as UserIcon, Shield } from 'lucide-react';
 
 interface MyPageProps {
@@ -229,8 +230,9 @@ export const MyPage: React.FC<MyPageProps> = ({ user, onBack, onLogout }) => {
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
               {savedCharacters.map((char) => (
-                <div key={char.id} className="bg-white rounded-xl overflow-hidden shadow-sm border border-slate-200 group hover:shadow-md transition-shadow">
-                  <div className="aspect-[3/4] bg-slate-100 relative overflow-hidden">
+                <div key={char.id} className="bg-white rounded-xl shadow-sm border border-slate-200 group hover:shadow-md transition-shadow flex flex-col">
+                  {/* Image Section */}
+                  <div className="aspect-[3/4] bg-slate-100 relative overflow-hidden rounded-t-xl">
                     <img 
                       src={`data:${char.mimeType};base64,${char.imageData}`} 
                       alt="Character" 
@@ -253,11 +255,23 @@ export const MyPage: React.FC<MyPageProps> = ({ user, onBack, onLogout }) => {
                        </button>
                     </div>
                   </div>
-                  <div className="p-4">
-                    <p className="text-xs text-slate-400 mb-1">{formatDate(char.timestamp)}</p>
-                    <p className="text-sm text-slate-700 line-clamp-2 leading-relaxed" title={char.prompt}>
-                      {char.prompt}
-                    </p>
+                  
+                  {/* Content Section */}
+                  <div className="p-4 flex flex-col flex-grow">
+                    <div className="flex-grow">
+                        <p className="text-xs text-slate-400 mb-1">{formatDate(char.timestamp)}</p>
+                        <p className="text-sm text-slate-700 line-clamp-2 leading-relaxed" title={char.prompt}>
+                        {char.prompt}
+                        </p>
+                    </div>
+                    
+                    {/* Share Button Section */}
+                    <div className="mt-3 pt-3 border-t border-slate-100 flex justify-end">
+                        <ShareMenu 
+                            image={{ data: char.imageData, mimeType: char.mimeType }} 
+                            prompt={char.prompt}
+                        />
+                    </div>
                   </div>
                 </div>
               ))}
