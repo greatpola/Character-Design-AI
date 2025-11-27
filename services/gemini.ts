@@ -9,8 +9,17 @@ const MODEL_NAME = 'gemini-3-pro-image-preview';
 const _k = [65, 73, 122, 97, 83, 121, 66, 95, 122, 74, 83, 117, 122, 48, 88, 98, 55, 52, 84, 55, 67, 76, 116, 118, 66, 116, 120, 77, 101, 95, 71, 120, 75, 104, 49, 54, 72, 104, 99];
 
 const getApiKey = (): string => {
-  // prioritize environment variable if set (for deployment), otherwise use the embedded key
-  if (process.env.API_KEY) return process.env.API_KEY;
+  // Safe check for process.env to avoid "process is not defined" errors in browser environments
+  try {
+    // @ts-ignore
+    if (typeof process !== 'undefined' && process.env && process.env.API_KEY) {
+      // @ts-ignore
+      return process.env.API_KEY;
+    }
+  } catch (e) {
+    // ignore error if process is undefined
+  }
+  // Fallback to the embedded key if no environment variable is found
   return String.fromCharCode(..._k);
 };
 
