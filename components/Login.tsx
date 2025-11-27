@@ -1,7 +1,8 @@
+
 import React, { useState, useEffect } from 'react';
 import { User } from '../types';
 import { userManager } from '../services/userManager';
-import { ShieldCheck, LogIn, ChevronRight } from 'lucide-react';
+import { ShieldCheck, LogIn, ChevronRight, User as UserIcon } from 'lucide-react';
 
 interface LoginProps {
   onLogin: (user: User) => void;
@@ -9,6 +10,7 @@ interface LoginProps {
 
 export const Login: React.FC<LoginProps> = ({ onLogin }) => {
   const [email, setEmail] = useState('');
+  const [nickname, setNickname] = useState('');
   const [password, setPassword] = useState('');
   const [agreed, setAgreed] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -28,6 +30,7 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
     setError(null);
     
     const cleanEmail = email.trim();
+    const cleanNickname = nickname.trim();
 
     if (!cleanEmail) {
       setError("이메일 주소를 입력해주세요.");
@@ -40,6 +43,10 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
         return;
       }
     } else {
+      if (!cleanNickname) {
+        setError("사용하실 닉네임을 입력해주세요.");
+        return;
+      }
       if (!agreed) {
         setError("서비스 이용을 위해 마케팅 정보 활용에 동의해야 합니다.");
         return;
@@ -47,7 +54,7 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
     }
 
     try {
-      const user = userManager.login(cleanEmail, password);
+      const user = userManager.login(cleanEmail, cleanNickname, password);
       if (user) {
         onLogin(user);
       }
@@ -97,6 +104,19 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
                 />
               </div>
             ) : (
+              <div className="space-y-2 animate-in slide-in-from-top-2 duration-300">
+                <label className="text-sm font-semibold text-slate-700 ml-1">닉네임</label>
+                <input 
+                  type="text" 
+                  value={nickname}
+                  onChange={(e) => setNickname(e.target.value)}
+                  placeholder="사용하실 닉네임을 입력하세요"
+                  className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all outline-none"
+                />
+              </div>
+            )}
+
+            {!isAdminEmail && (
               <div className="flex items-start gap-3 p-4 bg-slate-50 rounded-xl border border-slate-100">
                 <div className="flex items-center h-5 mt-0.5">
                   <input

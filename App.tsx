@@ -1,3 +1,4 @@
+
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { Hero } from './components/Hero';
 import { Loading } from './components/Loading';
@@ -28,6 +29,7 @@ function App() {
   const [appState, setAppState] = useState<AppState>(AppState.IDLE);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [currentView, setCurrentView] = useState<ViewState>('main');
+  const [showAdminDashboard, setShowAdminDashboard] = useState(false);
 
   // Focus ref for edit input
   const editInputRef = useRef<HTMLInputElement>(null);
@@ -56,6 +58,7 @@ function App() {
     setCurrentView('main');
     setCurrentImage(null);
     setPrompt('');
+    setShowAdminDashboard(false);
   };
 
   const handleGenerate = async () => {
@@ -139,8 +142,8 @@ function App() {
   }
 
   // 2. View Switching
-  if (currentView === 'admin') {
-    return <AdminDashboard onLogout={handleLogout} onBack={() => setCurrentView('main')} />;
+  if (showAdminDashboard && user.role === 'admin') {
+    return <AdminDashboard onLogout={handleLogout} onBack={() => setShowAdminDashboard(false)} />;
   }
 
   if (currentView === 'mypage') {
@@ -153,12 +156,12 @@ function App() {
       {/* Header */}
       <div className="bg-white border-b border-slate-200 px-4 py-2 flex justify-between items-center">
         <div className="text-xs text-slate-400 hidden sm:block">
-           {user.email}님 환영합니다
+           {user.nickname || user.email}님 환영합니다
         </div>
         <div className="flex items-center gap-2 ml-auto">
           {user.role === 'admin' && (
             <button
-              onClick={() => setCurrentView('admin')}
+              onClick={() => setShowAdminDashboard(true)}
               className="text-sm flex items-center gap-2 bg-slate-800 text-white px-3 py-1.5 rounded-lg hover:bg-slate-900 transition-colors"
             >
               <Settings className="w-4 h-4" />

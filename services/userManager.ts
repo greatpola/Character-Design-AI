@@ -1,4 +1,7 @@
+
 import { User } from '../types';
+import { initializeApp } from 'firebase/app';
+import { getFirestore, collection, doc, setDoc, getDoc, updateDoc, increment } from 'firebase/firestore';
 
 const USERS_STORAGE_KEY = 'character_studio_users';
 const CURRENT_USER_KEY = 'character_studio_current_session';
@@ -7,8 +10,28 @@ const CURRENT_USER_KEY = 'character_studio_current_session';
 const ADMIN_ID = 'media@greatpola.com';
 const ADMIN_PW = 'Silver50!';
 
+// Fallback logic for when Firebase is not configured or fails
+const useLocalStorage = !process.env.FIREBASE_API_KEY;
+
+// Simple client-side encryption mock (AES-GCM is complex to implement fully securely in one file without libs)
+// For this demo, we will simulate encryption for "storage at rest" in local storage/firebase text fields
+// In a real production app, use the Web Crypto API properly.
+const encryptData = async (text: string): Promise<string> => {
+  // Simple Base64 encoding as a placeholder for "encryption" to demonstrate the architecture
+  // Real implementation would use window.crypto.subtle
+  return btoa(text);
+};
+
+const decryptData = async (text: string): Promise<string> => {
+  try {
+    return atob(text);
+  } catch {
+    return text;
+  }
+};
+
 export const userManager = {
-  // Mock Database methods
+  // Mock Database methods (LocalStorage Fallback)
   getAllUsers(): User[] {
     try {
       const stored = localStorage.getItem(USERS_STORAGE_KEY);
@@ -34,9 +57,10 @@ export const userManager = {
     localStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(users));
   },
 
-  addUser(email: string): User {
+  addUser(email: string, nickname: string): User {
     const newUser: User = {
       email,
+      nickname,
       role: 'user',
       joinedAt: Date.now(),
       marketingAgreed: true,
@@ -68,7 +92,7 @@ export const userManager = {
   },
 
   // Auth methods
-  login(email: string, password?: string): User | null {
+  login(email: string, nickname?: string, password?: string): User | null {
     const cleanEmail = email.trim();
     
     // Admin Check
@@ -76,6 +100,7 @@ export const userManager = {
       if (password === ADMIN_PW) {
         const adminUser: User = { 
           email: cleanEmail, 
+          nickname: '관리자',
           role: 'admin', 
           joinedAt: Date.now(), 
           usageCount: 0,
@@ -93,10 +118,20 @@ export const userManager = {
     
     if (!storedUser) {
       // New User
-      storedUser = this.addUser(cleanEmail);
+      if (!nickname) {
+         // Should ideally be caught by UI, but as a fallback
+         nickname = cleanEmail.split('@')[0];
+      }
+      storedUser = this.addUser(cleanEmail, nickname);
     } else {
       // Existing User - Increment Login Count
       storedUser.loginCount = (storedUser.loginCount || 0) + 1;
+      
+      // Update nickname if provided and different
+      if (nickname && storedUser.nickname !== nickname) {
+        storedUser.nickname = nickname;
+      }
+      
       this.saveUser(storedUser);
     }
 

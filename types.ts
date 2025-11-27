@@ -23,6 +23,7 @@ export type UserRole = 'admin' | 'user';
 
 export interface User {
   email: string;
+  nickname: string;
   role: UserRole;
   joinedAt: number;
   marketingAgreed?: boolean;

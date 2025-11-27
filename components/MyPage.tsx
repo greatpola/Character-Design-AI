@@ -101,7 +101,9 @@ export const MyPage: React.FC<MyPageProps> = ({ user, onBack, onLogout }) => {
           </button>
           <div className="flex items-center gap-2">
              <h1 className="text-xl font-bold text-slate-800">마이 페이지</h1>
-             <span className="text-xs bg-slate-100 text-slate-500 px-2 py-1 rounded-full">{user.email}</span>
+             <span className="text-xs bg-slate-100 text-slate-500 px-2 py-1 rounded-full">
+               {user.nickname || user.email}
+             </span>
           </div>
         </div>
         <button 

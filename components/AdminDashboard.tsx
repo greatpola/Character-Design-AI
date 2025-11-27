@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { User, Message, SeoConfig } from '../types';
 import { userManager } from '../services/userManager';
@@ -98,6 +99,12 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout, onBack
     });
   };
 
+  // Helper to find nickname for a given email
+  const getNickname = (email: string) => {
+    const user = userManager.getUser(email);
+    return user ? user.nickname : email;
+  };
+
   return (
     <div className="min-h-screen bg-slate-100 flex flex-col">
       {/* Navbar */}
@@ -181,6 +188,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout, onBack
               <table className="w-full text-left">
                 <thead>
                   <tr className="bg-slate-50 text-slate-500 text-sm uppercase tracking-wider">
+                    <th className="px-6 py-4 font-semibold">닉네임</th>
                     <th className="px-6 py-4 font-semibold">이메일</th>
                     <th className="px-6 py-4 font-semibold">가입 일시</th>
                     <th className="px-6 py-4 font-semibold">마케팅 동의</th>
@@ -191,15 +199,16 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout, onBack
                 <tbody className="divide-y divide-slate-100">
                   {users.length === 0 ? (
                     <tr>
-                      <td colSpan={5} className="px-6 py-12 text-center text-slate-400">
+                      <td colSpan={6} className="px-6 py-12 text-center text-slate-400">
                         등록된 사용자가 없습니다.
                       </td>
                     </tr>
                   ) : (
                     users.map((user) => (
                       <tr key={user.email} className="hover:bg-slate-50 transition-colors">
-                        <td className="px-6 py-4 text-slate-900 font-medium">{user.email}</td>
-                        <td className="px-6 py-4 text-slate-600 text-sm">{formatDate(user.joinedAt)}</td>
+                        <td className="px-6 py-4 text-slate-900 font-bold">{user.nickname || '-'}</td>
+                        <td className="px-6 py-4 text-slate-600 font-medium">{user.email}</td>
+                        <td className="px-6 py-4 text-slate-500 text-sm">{formatDate(user.joinedAt)}</td>
                         <td className="px-6 py-4">
                           {user.marketingAgreed ? (
                             <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
@@ -248,23 +257,27 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout, onBack
                     아직 문의가 없습니다.
                   </div>
                 ) : (
-                  senders.map(email => (
-                    <button
-                      key={email}
-                      onClick={() => setSelectedSender(email)}
-                      className={`w-full text-left p-4 border-b border-slate-100 transition-colors hover:bg-slate-50 ${
-                        selectedSender === email ? 'bg-blue-50 border-l-4 border-l-blue-600' : ''
-                      }`}
-                    >
-                      <div className="flex items-center gap-2 mb-1">
-                        <UserIcon className="w-4 h-4 text-slate-400" />
-                        <span className="font-semibold text-slate-800 truncate">{email}</span>
-                      </div>
-                      <p className="text-xs text-slate-500 truncate">
-                         대화 내용 보기
-                      </p>
-                    </button>
-                  ))
+                  senders.map(email => {
+                    const nick = getNickname(email);
+                    return (
+                      <button
+                        key={email}
+                        onClick={() => setSelectedSender(email)}
+                        className={`w-full text-left p-4 border-b border-slate-100 transition-colors hover:bg-slate-50 ${
+                          selectedSender === email ? 'bg-blue-50 border-l-4 border-l-blue-600' : ''
+                        }`}
+                      >
+                        <div className="flex items-center gap-2 mb-1">
+                          <UserIcon className="w-4 h-4 text-slate-400" />
+                          <span className="font-bold text-slate-800 truncate">{nick}</span>
+                        </div>
+                        <p className="text-xs text-slate-400 truncate mb-1">{email}</p>
+                        <p className="text-xs text-slate-500 truncate">
+                           대화 내용 보기
+                        </p>
+                      </button>
+                    );
+                  })
                 )}
               </div>
             </div>
@@ -278,8 +291,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout, onBack
                       <UserIcon className="w-5 h-5" />
                     </div>
                     <div>
-                      <h3 className="font-bold text-slate-900">{selectedSender}</h3>
-                      <p className="text-xs text-slate-500">사용자와의 1:1 대화</p>
+                      <h3 className="font-bold text-slate-900">{getNickname(selectedSender)}</h3>
+                      <p className="text-xs text-slate-500">{selectedSender}</p>
                     </div>
                   </div>
 
@@ -300,7 +313,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout, onBack
                                     관리자 (나)
                                   </div>
                                ) : (
-                                  <span className="text-xs text-slate-500">{selectedSender}</span>
+                                  <span className="text-xs text-slate-500">{getNickname(selectedSender)}</span>
                                )}
                              </div>
                              <p className="text-sm whitespace-pre-wrap leading-relaxed">{msg.content}</p>
