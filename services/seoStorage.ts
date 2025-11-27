@@ -1,3 +1,4 @@
+
 import { SeoConfig } from '../types';
 
 const SEO_STORAGE_KEY = 'character_studio_seo';
@@ -6,7 +7,8 @@ const DEFAULT_SEO: SeoConfig = {
   title: 'Character Studio AI',
   description: 'Generate and edit professional character design sheets using Gemini 3 Pro Image.',
   keywords: 'AI, Character Design, 3D Art, Toy Design, Gemini, Brand Sheet',
-  author: 'Character Studio AI'
+  author: 'Character Studio AI',
+  supportLink: 'https://buy.stripe.com/28E5kDgVC9dl6AE8Wy'
 };
 
 export const seoStorage = {

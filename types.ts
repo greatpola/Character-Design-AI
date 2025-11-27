@@ -54,4 +54,5 @@ export interface SeoConfig {
   description: string;
   keywords: string;
   author: string;
+  supportLink?: string;
 }

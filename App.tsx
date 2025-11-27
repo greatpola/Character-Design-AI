@@ -1,3 +1,4 @@
+
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { Hero } from './components/Hero';
 import { Loading } from './components/Loading';
@@ -137,7 +138,9 @@ function App() {
   };
 
   const handleSupportDeveloper = () => {
-    window.open('https://buy.stripe.com/28E5kDgVC9dl6AE8Wy', '_blank');
+    const config = seoStorage.getSeoConfig();
+    const link = config.supportLink || 'https://buy.stripe.com/28E5kDgVC9dl6AE8Wy';
+    window.open(link, '_blank');
   };
 
   // 1. Not Logged In -> Show Login Screen

@@ -4,7 +4,7 @@ import { User, Message, SeoConfig } from '../types';
 import { userManager } from '../services/userManager';
 import { messageStorage } from '../services/messageStorage';
 import { seoStorage } from '../services/seoStorage';
-import { Users, Trash2, LogOut, ArrowLeft, MessageSquare, Mail, Send, User as UserIcon, Shield, Globe, Save } from 'lucide-react';
+import { Users, Trash2, LogOut, ArrowLeft, MessageSquare, Mail, Send, User as UserIcon, Shield, Globe, Save, Link } from 'lucide-react';
 
 interface AdminDashboardProps {
   onLogout: () => void;
@@ -79,7 +79,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout, onBack
   const handleSaveSeo = (e: React.FormEvent) => {
     e.preventDefault();
     seoStorage.saveSeoConfig(seoConfig);
-    alert('SEO 설정이 저장되었으며 사이트에 즉시 적용되었습니다.');
+    alert('설정이 저장되었으며 사이트에 즉시 적용되었습니다.');
   };
 
   const formatDate = (timestamp: number) => {
@@ -169,7 +169,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout, onBack
             }`}
           >
             <Globe className="w-4 h-4" />
-            SEO 설정
+            사이트 및 SEO 설정
           </button>
         </div>
 
@@ -359,9 +359,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout, onBack
             <div className="p-6 border-b border-slate-100">
               <h2 className="text-lg font-bold text-slate-800 flex items-center gap-2">
                 <Globe className="w-5 h-5 text-blue-600" />
-                검색 엔진 최적화 (SEO) 설정
+                사이트 및 SEO 설정
               </h2>
-              <p className="text-sm text-slate-500 mt-1">사이트의 메타 태그 정보를 실시간으로 수정할 수 있습니다.</p>
+              <p className="text-sm text-slate-500 mt-1">메타 태그 및 사이트 주요 설정을 관리할 수 있습니다.</p>
             </div>
             
             <form onSubmit={handleSaveSeo} className="p-8 max-w-3xl">
@@ -412,7 +412,22 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout, onBack
                   />
                 </div>
 
-                <div className="pt-4 border-t border-slate-100 flex justify-end">
+                <div className="space-y-2 pt-4 border-t border-slate-100">
+                  <label className="text-sm font-bold text-slate-700 flex items-center gap-2">
+                    <Link className="w-4 h-4" />
+                    개발자 응원하기 링크
+                  </label>
+                  <input
+                    type="text"
+                    value={seoConfig.supportLink || ''}
+                    onChange={(e) => setSeoConfig({...seoConfig, supportLink: e.target.value})}
+                    className="w-full p-3 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                    placeholder="예: https://buy.stripe.com/..."
+                  />
+                  <p className="text-xs text-slate-400">메인 화면의 '개발자 응원하기' 버튼 클릭 시 이동할 URL입니다.</p>
+                </div>
+
+                <div className="pt-4 flex justify-end">
                    <button
                      type="submit"
                      className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-bold flex items-center gap-2 transition-colors shadow-lg shadow-blue-200"
