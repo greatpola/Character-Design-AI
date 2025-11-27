@@ -7,8 +7,7 @@ export const Hero: React.FC = () => {
         Character <span className="text-blue-600">Studio</span> AI
       </h1>
       <p className="text-lg text-slate-600 max-w-2xl mx-auto">
-        캐릭터 스토리부터 굿즈 목업까지, 완벽한 브랜드 시트를 완성하세요. <br/>
-        <span className="text-sm text-slate-400">Powered by Gemini 3 Pro Image (Nano Banana 2)</span>
+        캐릭터 스토리부터 굿즈 목업까지, 완벽한 브랜드 시트를 완성하세요.
       </p>
     </div>
   );

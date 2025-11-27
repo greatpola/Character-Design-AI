@@ -138,7 +138,7 @@ function App() {
           </div>
         </div>
         <footer className="bg-white border-t border-slate-200 py-6 text-center text-slate-500 text-sm">
-          <p>&copy; 2024 Character Studio AI. Powered by Google Gemini 3 Pro Image.</p>
+          <p>&copy; 2024 Character AI. Powered by TP</p>
         </footer>
       </div>
     );
@@ -277,7 +277,7 @@ function App() {
       </main>
 
       <footer className="bg-white border-t border-slate-200 py-6 text-center text-slate-500 text-sm">
-        <p>&copy; 2024 Character Studio AI. Powered by Google Gemini 3 Pro Image.</p>
+        <p>&copy; 2024 Character AI. Powered by TP</p>
       </footer>
     </div>
   );
