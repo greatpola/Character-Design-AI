@@ -1,3 +1,4 @@
+
 export interface GeneratedImage {
   data: string; // Base64 string
   mimeType: string;
@@ -26,4 +27,30 @@ export interface User {
   joinedAt: number;
   marketingAgreed?: boolean;
   usageCount?: number;
+  loginCount?: number;
+}
+
+export interface SavedCharacter {
+  id: string;
+  userEmail: string;
+  imageData: string;
+  mimeType: string;
+  prompt: string;
+  timestamp: number;
+}
+
+export interface Message {
+  id: string;
+  senderEmail: string;
+  targetEmail: string; // The recipient
+  senderRole: UserRole; // Who sent it?
+  content: string;
+  timestamp: number;
+}
+
+export interface SeoConfig {
+  title: string;
+  description: string;
+  keywords: string;
+  author: string;
 }

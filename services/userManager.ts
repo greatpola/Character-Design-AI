@@ -23,20 +23,28 @@ export const userManager = {
     return users.find(u => u.email === email);
   },
 
-  addUser(email: string) {
+  saveUser(user: User) {
     const users = this.getAllUsers();
-    // Prevent duplicates
-    if (!users.find(u => u.email === email)) {
-      const newUser: User = {
-        email,
-        role: 'user',
-        joinedAt: Date.now(),
-        marketingAgreed: true,
-        usageCount: 0
-      };
-      users.push(newUser);
-      localStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(users));
+    const index = users.findIndex(u => u.email === user.email);
+    if (index !== -1) {
+      users[index] = user;
+    } else {
+      users.push(user);
     }
+    localStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(users));
+  },
+
+  addUser(email: string): User {
+    const newUser: User = {
+      email,
+      role: 'user',
+      joinedAt: Date.now(),
+      marketingAgreed: true,
+      usageCount: 0,
+      loginCount: 1 // Initial login
+    };
+    this.saveUser(newUser);
+    return newUser;
   },
 
   removeUser(email: string) {
@@ -45,13 +53,17 @@ export const userManager = {
   },
 
   incrementUsage(email: string) {
-    const users = this.getAllUsers();
-    const userIndex = users.findIndex(u => u.email === email);
-    if (userIndex !== -1) {
-      const user = users[userIndex];
+    const user = this.getUser(email);
+    if (user) {
       user.usageCount = (user.usageCount || 0) + 1;
-      users[userIndex] = user;
-      localStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(users));
+      this.saveUser(user);
+      
+      // Also update session if it matches
+      const session = this.getSession();
+      if (session && session.email === email) {
+        session.usageCount = user.usageCount;
+        this.saveSession(session);
+      }
     }
   },
 
@@ -62,8 +74,13 @@ export const userManager = {
     // Admin Check
     if (cleanEmail === ADMIN_ID) {
       if (password === ADMIN_PW) {
-        // Admins don't need usage tracking in the user list usually, but we can return a valid User object
-        const adminUser: User = { email: cleanEmail, role: 'admin', joinedAt: Date.now(), usageCount: 0 };
+        const adminUser: User = { 
+          email: cleanEmail, 
+          role: 'admin', 
+          joinedAt: Date.now(), 
+          usageCount: 0,
+          loginCount: 0 
+        };
         this.saveSession(adminUser);
         return adminUser;
       } else {
@@ -74,21 +91,13 @@ export const userManager = {
     // Normal User Check
     let storedUser = this.getUser(cleanEmail);
     
-    // If new user, create them
     if (!storedUser) {
-      this.addUser(cleanEmail);
-      storedUser = this.getUser(cleanEmail);
-    }
-    
-    // Fallback if something went wrong (should not happen)
-    if (!storedUser) {
-      storedUser = { 
-        email: cleanEmail, 
-        role: 'user', 
-        joinedAt: Date.now(), 
-        marketingAgreed: true, 
-        usageCount: 0 
-      };
+      // New User
+      storedUser = this.addUser(cleanEmail);
+    } else {
+      // Existing User - Increment Login Count
+      storedUser.loginCount = (storedUser.loginCount || 0) + 1;
+      this.saveUser(storedUser);
     }
 
     this.saveSession(storedUser);

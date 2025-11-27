@@ -3,10 +3,13 @@ import { Hero } from './components/Hero';
 import { Loading } from './components/Loading';
 import { Login } from './components/Login';
 import { AdminDashboard } from './components/AdminDashboard';
+import { MyPage } from './components/MyPage';
 import { generateCharacterSheet, editCharacterSheet } from './services/gemini';
 import { userManager } from './services/userManager';
+import { characterStorage } from './services/characterStorage';
+import { seoStorage } from './services/seoStorage';
 import { GeneratedImage, AppState, User } from './types';
-import { Download, Wand2, RefreshCw, Send, Image as ImageIcon, Edit3, Settings, LogOut } from 'lucide-react';
+import { Download, Wand2, RefreshCw, Send, Image as ImageIcon, Edit3, Settings, LogOut, User as UserIcon, Save } from 'lucide-react';
 
 const SUGGESTIONS = [
   "머리에 새싹이 자라난 귀여운 꼬마 로봇, 흰색과 초록색 테마",
@@ -15,6 +18,8 @@ const SUGGESTIONS = [
   "전통 한복을 입은 다람쥐 캐릭터, 파스텔 톤"
 ];
 
+type ViewState = 'main' | 'admin' | 'mypage';
+
 function App() {
   const [user, setUser] = useState<User | null>(null);
   const [prompt, setPrompt] = useState('');
@@ -22,7 +27,7 @@ function App() {
   const [currentImage, setCurrentImage] = useState<GeneratedImage | null>(null);
   const [appState, setAppState] = useState<AppState>(AppState.IDLE);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
-  const [showAdminDashboard, setShowAdminDashboard] = useState(false);
+  const [currentView, setCurrentView] = useState<ViewState>('main');
 
   // Focus ref for edit input
   const editInputRef = useRef<HTMLInputElement>(null);
@@ -35,15 +40,22 @@ function App() {
     }
   }, []);
 
+  // Apply SEO settings
+  useEffect(() => {
+    seoStorage.applyToDocument();
+  }, [currentView]); // Re-apply when view changes or component mounts
+
   const handleLogin = (loggedInUser: User) => {
     setUser(loggedInUser);
-    setShowAdminDashboard(false);
+    setCurrentView('main');
   };
 
   const handleLogout = () => {
     userManager.logout();
     setUser(null);
-    setShowAdminDashboard(false);
+    setCurrentView('main');
+    setCurrentImage(null);
+    setPrompt('');
   };
 
   const handleGenerate = async () => {
@@ -61,6 +73,9 @@ function App() {
       // Track usage
       if (user) {
         userManager.incrementUsage(user.email);
+        // Refresh user data from storage to get updated counts
+        const updatedUser = userManager.getUser(user.email);
+        if(updatedUser) setUser(updatedUser);
       }
     } catch (e) {
       console.error(e);
@@ -84,6 +99,8 @@ function App() {
       // Track usage for edits as well
       if (user) {
         userManager.incrementUsage(user.email);
+        const updatedUser = userManager.getUser(user.email);
+        if(updatedUser) setUser(updatedUser);
       }
     } catch (e) {
       console.error(e);
@@ -102,6 +119,16 @@ function App() {
     document.body.removeChild(link);
   };
 
+  const handleSaveToGallery = () => {
+    if (!currentImage || !user) return;
+    try {
+      characterStorage.saveCharacter(user.email, currentImage, prompt);
+      alert("마이페이지 보관함에 저장되었습니다!");
+    } catch (e: any) {
+      alert(e.message);
+    }
+  };
+
   const handleSuggestionClick = (suggestion: string) => {
     setPrompt(suggestion);
   };
@@ -111,32 +138,52 @@ function App() {
     return <Login onLogin={handleLogin} />;
   }
 
-  // 2. Admin View -> Show Dashboard
-  if (user.role === 'admin' && showAdminDashboard) {
-    return <AdminDashboard onLogout={handleLogout} onBack={() => setShowAdminDashboard(false)} />;
+  // 2. View Switching
+  if (currentView === 'admin') {
+    return <AdminDashboard onLogout={handleLogout} onBack={() => setCurrentView('main')} />;
   }
 
-  // 3. Main App Screen (Direct access with environment API Key)
+  if (currentView === 'mypage') {
+    return <MyPage user={user} onBack={() => setCurrentView('main')} onLogout={handleLogout} />;
+  }
+
+  // 3. Main App Screen (Generator)
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col">
-      {/* Admin Toggle / Logout Header for Admin */}
-      <div className="bg-white border-b border-slate-200 px-4 py-2 flex justify-end gap-2">
-        {user.role === 'admin' && (
+      {/* Header */}
+      <div className="bg-white border-b border-slate-200 px-4 py-2 flex justify-between items-center">
+        <div className="text-xs text-slate-400 hidden sm:block">
+           {user.email}님 환영합니다
+        </div>
+        <div className="flex items-center gap-2 ml-auto">
+          {user.role === 'admin' && (
+            <button
+              onClick={() => setCurrentView('admin')}
+              className="text-sm flex items-center gap-2 bg-slate-800 text-white px-3 py-1.5 rounded-lg hover:bg-slate-900 transition-colors"
+            >
+              <Settings className="w-4 h-4" />
+              <span className="hidden sm:inline">관리자</span>
+            </button>
+          )}
+          
+          {user.role === 'user' && (
+             <button
+              onClick={() => setCurrentView('mypage')}
+              className="text-sm flex items-center gap-2 bg-white text-slate-700 border border-slate-200 px-3 py-1.5 rounded-lg hover:bg-slate-50 transition-colors"
+             >
+               <UserIcon className="w-4 h-4" />
+               <span className="hidden sm:inline">마이페이지</span>
+             </button>
+          )}
+
           <button
-            onClick={() => setShowAdminDashboard(true)}
-            className="text-sm flex items-center gap-2 bg-slate-800 text-white px-3 py-1.5 rounded-lg hover:bg-slate-900 transition-colors"
+            onClick={handleLogout}
+            className="text-sm flex items-center gap-2 text-slate-600 hover:text-red-600 px-3 py-1.5 rounded-lg hover:bg-slate-100 transition-colors"
           >
-            <Settings className="w-4 h-4" />
-            관리자 페이지
+            <LogOut className="w-4 h-4" />
+            <span className="hidden sm:inline">로그아웃</span>
           </button>
-        )}
-        <button
-          onClick={handleLogout}
-          className="text-sm flex items-center gap-2 text-slate-600 hover:text-red-600 px-3 py-1.5 rounded-lg hover:bg-slate-100 transition-colors"
-        >
-          <LogOut className="w-4 h-4" />
-          로그아웃
-        </button>
+        </div>
       </div>
 
       <Hero />
@@ -206,13 +253,24 @@ function App() {
                     <ImageIcon className="w-4 h-4" />
                     Generated Result (2K)
                   </div>
-                  <button
-                    onClick={handleDownload}
-                    className="flex items-center gap-2 text-sm bg-white hover:bg-slate-50 text-slate-700 px-3 py-1.5 rounded-lg border border-slate-300 transition-colors shadow-sm"
-                  >
-                    <Download className="w-4 h-4" />
-                    다운로드
-                  </button>
+                  <div className="flex gap-2">
+                    {user.role === 'user' && (
+                      <button
+                        onClick={handleSaveToGallery}
+                        className="flex items-center gap-2 text-sm bg-white hover:bg-blue-50 text-blue-600 px-3 py-1.5 rounded-lg border border-blue-200 transition-colors shadow-sm font-medium"
+                      >
+                        <Save className="w-4 h-4" />
+                        보관함 저장
+                      </button>
+                    )}
+                    <button
+                      onClick={handleDownload}
+                      className="flex items-center gap-2 text-sm bg-white hover:bg-slate-50 text-slate-700 px-3 py-1.5 rounded-lg border border-slate-300 transition-colors shadow-sm"
+                    >
+                      <Download className="w-4 h-4" />
+                      다운로드
+                    </button>
+                  </div>
                 </div>
                 
                 <div className="relative group flex justify-center bg-slate-50">
