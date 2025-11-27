@@ -4,7 +4,7 @@ import { User, Message, SeoConfig } from '../types';
 import { userManager } from '../services/userManager';
 import { messageStorage } from '../services/messageStorage';
 import { seoStorage } from '../services/seoStorage';
-import { Users, Trash2, LogOut, ArrowLeft, MessageSquare, Mail, Send, User as UserIcon, Shield, Globe, Save, Link, Edit, X } from 'lucide-react';
+import { Users, Trash2, LogOut, ArrowLeft, MessageSquare, Mail, Send, User as UserIcon, Shield, Globe, Save, Link, Edit, X, Loader2 } from 'lucide-react';
 
 interface AdminDashboardProps {
   onLogout: () => void;
@@ -30,6 +30,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout, onBack
 
   // SEO States
   const [seoConfig, setSeoConfig] = useState<SeoConfig>(seoStorage.getSeoConfig());
+  const [isSavingSeo, setIsSavingSeo] = useState(false);
 
   useEffect(() => {
     loadData();
@@ -51,7 +52,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout, onBack
     } else if (activeTab === 'messages') {
       setSenders(messageStorage.getUniqueSenders());
     } else if (activeTab === 'seo') {
-      setSeoConfig(seoStorage.getSeoConfig());
+      // Fetch latest from cloud when entering SEO tab
+      seoStorage.fetchAndSync().then(() => {
+         setSeoConfig(seoStorage.getSeoConfig());
+      });
     }
   };
 
@@ -102,10 +106,18 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout, onBack
     loadChatHistory(selectedSender);
   };
 
-  const handleSaveSeo = (e: React.FormEvent) => {
+  const handleSaveSeo = async (e: React.FormEvent) => {
     e.preventDefault();
-    seoStorage.saveSeoConfig(seoConfig);
-    alert('설정이 저장되었으며 사이트에 즉시 적용되었습니다.');
+    setIsSavingSeo(true);
+    try {
+      await seoStorage.saveSeoConfig(seoConfig);
+      alert('설정이 저장되었으며 사이트 전체에 적용되었습니다.');
+    } catch (err: any) {
+      // Show explicit error if cloud sync fails
+      alert(`오류: ${err.message || '설정 저장 중 문제가 발생했습니다.'}`);
+    } finally {
+      setIsSavingSeo(false);
+    }
   };
 
   const formatDate = (timestamp: number) => {
@@ -438,22 +450,25 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout, onBack
                 <div className="space-y-2 pt-4 border-t border-slate-100">
                   <label className="text-sm font-bold text-slate-700 flex items-center gap-2">
                     <Link className="w-4 h-4" />
-                    개발자 응원하기 링크
+                    개발자 응원하기 링크 (전체 사용자 적용)
                   </label>
                   <input
                     type="text"
                     value={seoConfig.supportLink || ''}
                     onChange={(e) => setSeoConfig({...seoConfig, supportLink: e.target.value})}
                     className="w-full p-3 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                    placeholder="예: https://buy.stripe.com/..."
                   />
+                  <p className="text-xs text-slate-400">이 링크는 클라우드에 저장되어 모든 사용자에게 동일하게 적용됩니다.</p>
                 </div>
                 <div className="pt-4 flex justify-end">
                    <button
                      type="submit"
-                     className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-bold flex items-center gap-2 transition-colors shadow-lg shadow-blue-200"
+                     disabled={isSavingSeo}
+                     className="bg-blue-600 hover:bg-blue-700 disabled:bg-slate-300 text-white px-6 py-3 rounded-lg font-bold flex items-center gap-2 transition-colors shadow-lg shadow-blue-200"
                    >
-                     <Save className="w-5 h-5" />
-                     설정 저장 및 적용
+                     {isSavingSeo ? <Loader2 className="w-5 h-5 animate-spin" /> : <Save className="w-5 h-5" />}
+                     {isSavingSeo ? '저장 중...' : '설정 저장 및 적용'}
                    </button>
                 </div>
               </div>

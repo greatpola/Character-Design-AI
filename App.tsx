@@ -43,10 +43,11 @@ function App() {
     }
   }, []);
 
-  // Apply SEO settings
+  // Apply SEO settings & Sync with Cloud
   useEffect(() => {
-    seoStorage.applyToDocument();
-  }, [currentView]); // Re-apply when view changes or component mounts
+    seoStorage.applyToDocument(); // Apply local cache immediately for speed
+    seoStorage.fetchAndSync();    // Fetch latest global config from cloud in background
+  }, [currentView]); // Re-check when view changes
 
   const handleLogin = (loggedInUser: User) => {
     setUser(loggedInUser);
