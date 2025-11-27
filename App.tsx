@@ -1,16 +1,16 @@
-
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { Hero } from './components/Hero';
 import { Loading } from './components/Loading';
 import { Login } from './components/Login';
 import { AdminDashboard } from './components/AdminDashboard';
 import { MyPage } from './components/MyPage';
+import { ShareMenu } from './components/ShareMenu';
 import { generateCharacterSheet, editCharacterSheet } from './services/gemini';
 import { userManager } from './services/userManager';
 import { characterStorage } from './services/characterStorage';
 import { seoStorage } from './services/seoStorage';
 import { GeneratedImage, AppState, User } from './types';
-import { Download, Wand2, RefreshCw, Send, Image as ImageIcon, Edit3, Settings, LogOut, User as UserIcon, Save } from 'lucide-react';
+import { Download, Wand2, RefreshCw, Send, Image as ImageIcon, Edit3, Settings, LogOut, User as UserIcon, Save, Heart, Zap } from 'lucide-react';
 
 const SUGGESTIONS = [
   "머리에 새싹이 자라난 귀여운 꼬마 로봇, 흰색과 초록색 테마",
@@ -136,6 +136,10 @@ function App() {
     setPrompt(suggestion);
   };
 
+  const handleSupportDeveloper = () => {
+    window.open('https://buy.stripe.com/28E5kDgVC9dl6AE8Wy', '_blank');
+  };
+
   // 1. Not Logged In -> Show Login Screen
   if (!user) {
     return <Login onLogin={handleLogin} />;
@@ -233,6 +237,26 @@ function App() {
           </div>
         </section>
 
+        {/* Credit & Support Banner */}
+        <section className="bg-gradient-to-r from-indigo-50 to-purple-50 border border-indigo-100 rounded-xl p-4 md:p-5 flex flex-col md:flex-row items-center justify-between gap-4 shadow-sm animate-in fade-in slide-in-from-bottom-2 duration-700">
+           <div className="flex items-start md:items-center gap-3">
+              <div className="bg-white p-2 rounded-full text-indigo-500 shadow-sm shrink-0">
+                <Zap className="w-5 h-5 fill-indigo-100" />
+              </div>
+              <div className="text-sm text-indigo-900 leading-relaxed">
+                <p className="font-bold">이미지 생성 시 크레딧이 소모되고 있습니다.</p>
+                <p className="text-indigo-700">광고 없는 프로그램 사용과 새로운 기능 개발을 위해 사용됩니다.</p>
+              </div>
+           </div>
+           <button
+             onClick={handleSupportDeveloper}
+             className="w-full md:w-auto bg-white hover:bg-indigo-50 text-indigo-600 border border-indigo-200 px-4 py-2.5 rounded-lg font-bold transition-all shadow-sm hover:shadow-md flex items-center justify-center gap-2 group whitespace-nowrap"
+           >
+             <Heart className="w-4 h-4 text-red-500 fill-red-50 group-hover:fill-red-500 transition-colors" />
+             개발자 응원하기
+           </button>
+        </section>
+
         {/* Error Message */}
         {errorMsg && (
           <div className="bg-red-50 text-red-600 p-4 rounded-xl border border-red-100 flex items-center gap-2">
@@ -257,6 +281,9 @@ function App() {
                     Generated Result (2K)
                   </div>
                   <div className="flex gap-2">
+                    {/* Share Button */}
+                    <ShareMenu image={currentImage} prompt={prompt} />
+
                     {user.role === 'user' && (
                       <button
                         onClick={handleSaveToGallery}

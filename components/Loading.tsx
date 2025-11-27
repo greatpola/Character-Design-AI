@@ -17,7 +17,7 @@ export const Loading: React.FC<LoadingProps> = ({ mode }) => {
           : '레이아웃 유지 및 텍스트 최적화 수정 중...'}
       </p>
       <div className="text-sm text-slate-400 text-center space-y-1">
-        <p>Gemini 3 Pro Image가 고해상도 시안을 제작하고 있습니다.</p>
+        <p>AI가 고해상도 시안을 제작하고 있습니다.</p>
         <p className="text-xs text-slate-300">Story • Basic • Turnaround • Motion • Application</p>
       </div>
     </div>
