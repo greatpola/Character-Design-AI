@@ -17,3 +17,13 @@ export interface HistoryItem {
   prompt: string;
   timestamp: number;
 }
+
+export type UserRole = 'admin' | 'user';
+
+export interface User {
+  email: string;
+  role: UserRole;
+  joinedAt: number;
+  marketingAgreed?: boolean;
+  usageCount?: number;
+}

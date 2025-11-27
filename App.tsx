@@ -1,9 +1,12 @@
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { Hero } from './components/Hero';
 import { Loading } from './components/Loading';
+import { Login } from './components/Login';
+import { AdminDashboard } from './components/AdminDashboard';
 import { generateCharacterSheet, editCharacterSheet } from './services/gemini';
-import { GeneratedImage, AppState } from './types';
-import { Download, Wand2, RefreshCw, Send, Image as ImageIcon, Edit3, LockKeyhole } from 'lucide-react';
+import { userManager } from './services/userManager';
+import { GeneratedImage, AppState, User } from './types';
+import { Download, Wand2, RefreshCw, Send, Image as ImageIcon, Edit3, Settings, LogOut } from 'lucide-react';
 
 const SUGGESTIONS = [
   "머리에 새싹이 자라난 귀여운 꼬마 로봇, 흰색과 초록색 테마",
@@ -13,46 +16,34 @@ const SUGGESTIONS = [
 ];
 
 function App() {
+  const [user, setUser] = useState<User | null>(null);
   const [prompt, setPrompt] = useState('');
   const [editPrompt, setEditPrompt] = useState('');
   const [currentImage, setCurrentImage] = useState<GeneratedImage | null>(null);
   const [appState, setAppState] = useState<AppState>(AppState.IDLE);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
-  const [hasApiKey, setHasApiKey] = useState(false);
+  const [showAdminDashboard, setShowAdminDashboard] = useState(false);
 
   // Focus ref for edit input
   const editInputRef = useRef<HTMLInputElement>(null);
 
-  // Check for API key on mount
+  // Check login session on mount
   useEffect(() => {
-    const checkKey = async () => {
-      try {
-        // @ts-ignore
-        if (window.aistudio && window.aistudio.hasSelectedApiKey) {
-          // @ts-ignore
-          const has = await window.aistudio.hasSelectedApiKey();
-          setHasApiKey(has);
-        }
-      } catch (e) {
-        console.error("Error checking API key status:", e);
-      }
-    };
-    checkKey();
+    const sessionUser = userManager.getSession();
+    if (sessionUser) {
+      setUser(sessionUser);
+    }
   }, []);
 
-  const handleApiKeySelect = async () => {
-    try {
-      // @ts-ignore
-      if (window.aistudio && window.aistudio.openSelectKey) {
-        // @ts-ignore
-        await window.aistudio.openSelectKey();
-        // Assume success to mitigate race condition
-        setHasApiKey(true);
-      }
-    } catch (e) {
-      console.error("Error opening key selector:", e);
-      setErrorMsg("API 키 선택 창을 여는 중 오류가 발생했습니다.");
-    }
+  const handleLogin = (loggedInUser: User) => {
+    setUser(loggedInUser);
+    setShowAdminDashboard(false);
+  };
+
+  const handleLogout = () => {
+    userManager.logout();
+    setUser(null);
+    setShowAdminDashboard(false);
   };
 
   const handleGenerate = async () => {
@@ -66,9 +57,14 @@ function App() {
       const result = await generateCharacterSheet(prompt);
       setCurrentImage(result);
       setAppState(AppState.SUCCESS);
+      
+      // Track usage
+      if (user) {
+        userManager.incrementUsage(user.email);
+      }
     } catch (e) {
       console.error(e);
-      setErrorMsg("이미지를 생성하는 도중 오류가 발생했습니다. API 키가 유효한지 확인해주세요.");
+      setErrorMsg("이미지를 생성하는 도중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.");
       setAppState(AppState.ERROR);
     }
   };
@@ -84,6 +80,11 @@ function App() {
       setCurrentImage(result);
       setAppState(AppState.SUCCESS);
       setEditPrompt(''); // Reset edit prompt after success
+      
+      // Track usage for edits as well
+      if (user) {
+        userManager.incrementUsage(user.email);
+      }
     } catch (e) {
       console.error(e);
       setErrorMsg("이미지를 수정하는 도중 오류가 발생했습니다. 편집 내용을 조금 더 구체적으로 적어주세요.");
@@ -105,48 +106,39 @@ function App() {
     setPrompt(suggestion);
   };
 
-  // API Key Selection Screen
-  if (!hasApiKey) {
-    return (
-      <div className="min-h-screen bg-slate-50 flex flex-col">
-        <Hero />
-        <div className="flex-grow flex items-center justify-center p-4">
-          <div className="bg-white p-8 md:p-12 rounded-3xl shadow-xl border border-slate-200 max-w-lg w-full text-center space-y-8 animate-in zoom-in-95 duration-300">
-            <div className="bg-blue-50 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6">
-              <LockKeyhole className="w-10 h-10 text-blue-600" />
-            </div>
-            <div>
-              <h2 className="text-2xl font-bold text-slate-900 mb-3">API 키 설정이 필요합니다</h2>
-              <p className="text-slate-600 leading-relaxed">
-                Gemini 3 Pro Image 모델을 사용하여 고품질 캐릭터를 생성하려면<br className="hidden md:inline" /> 
-                Google Cloud 프로젝트의 API 키를 선택해야 합니다.
-              </p>
-            </div>
-            
-            <button
-              onClick={handleApiKeySelect}
-              className="w-full bg-blue-600 hover:bg-blue-700 text-white py-4 px-6 rounded-xl font-bold text-lg transition-all transform hover:scale-[1.02] shadow-lg flex items-center justify-center gap-3"
-            >
-              <Wand2 className="w-5 h-5" />
-              API 키 선택하고 시작하기
-            </button>
-            
-            <p className="text-xs text-slate-400">
-              API 키는 로컬 환경에만 저장되며 서버로 전송되지 않습니다. <br/>
-              자세한 내용은 <a href="https://ai.google.dev/gemini-api/docs/billing" target="_blank" rel="noreferrer" className="underline hover:text-blue-600 transition-colors">Billing Documentation</a>을 참고하세요.
-            </p>
-          </div>
-        </div>
-        <footer className="bg-white border-t border-slate-200 py-6 text-center text-slate-500 text-sm">
-          <p>&copy; 2024 Character AI. Powered by TP</p>
-        </footer>
-      </div>
-    );
+  // 1. Not Logged In -> Show Login Screen
+  if (!user) {
+    return <Login onLogin={handleLogin} />;
   }
 
-  // Main App Screen
+  // 2. Admin View -> Show Dashboard
+  if (user.role === 'admin' && showAdminDashboard) {
+    return <AdminDashboard onLogout={handleLogout} onBack={() => setShowAdminDashboard(false)} />;
+  }
+
+  // 3. Main App Screen (Direct access with environment API Key)
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col">
+      {/* Admin Toggle / Logout Header for Admin */}
+      <div className="bg-white border-b border-slate-200 px-4 py-2 flex justify-end gap-2">
+        {user.role === 'admin' && (
+          <button
+            onClick={() => setShowAdminDashboard(true)}
+            className="text-sm flex items-center gap-2 bg-slate-800 text-white px-3 py-1.5 rounded-lg hover:bg-slate-900 transition-colors"
+          >
+            <Settings className="w-4 h-4" />
+            관리자 페이지
+          </button>
+        )}
+        <button
+          onClick={handleLogout}
+          className="text-sm flex items-center gap-2 text-slate-600 hover:text-red-600 px-3 py-1.5 rounded-lg hover:bg-slate-100 transition-colors"
+        >
+          <LogOut className="w-4 h-4" />
+          로그아웃
+        </button>
+      </div>
+
       <Hero />
 
       <main className="flex-grow container mx-auto max-w-5xl px-4 py-8 space-y-8">
