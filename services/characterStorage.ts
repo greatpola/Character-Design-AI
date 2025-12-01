@@ -1,28 +1,51 @@
-import { GeneratedImage, SavedCharacter } from '../types';
 
-const GALLERY_STORAGE_KEY = 'character_studio_gallery';
+import { GeneratedImage, SavedCharacter } from '../types';
+import { db } from './firebase';
+import { collection, addDoc, getDocs, query, where, deleteDoc, doc, orderBy } from 'firebase/firestore';
+
+const COLLECTION_NAME = 'characters';
 
 export const characterStorage = {
-  getAll(): SavedCharacter[] {
+  async getAll(): Promise<SavedCharacter[]> {
+    if (!db) return [];
     try {
-      const items = localStorage.getItem(GALLERY_STORAGE_KEY);
-      return items ? JSON.parse(items) : [];
-    } catch {
+      const q = query(collection(db, COLLECTION_NAME), orderBy('timestamp', 'desc'));
+      const snapshot = await getDocs(q);
+      const items: SavedCharacter[] = [];
+      snapshot.forEach(doc => {
+        items.push({ id: doc.id, ...doc.data() } as SavedCharacter);
+      });
+      return items;
+    } catch (e) {
+      console.error("Error fetching all characters:", e);
       return [];
     }
   },
 
-  getUserCharacters(email: string): SavedCharacter[] {
-    const all = this.getAll();
-    return all
-      .filter(item => item.userEmail === email)
-      .sort((a, b) => b.timestamp - a.timestamp);
+  async getUserCharacters(email: string): Promise<SavedCharacter[]> {
+    if (!db) return [];
+    try {
+      const q = query(
+        collection(db, COLLECTION_NAME), 
+        where('userEmail', '==', email)
+      );
+      const snapshot = await getDocs(q);
+      const items: SavedCharacter[] = [];
+      snapshot.forEach(doc => {
+        items.push({ id: doc.id, ...doc.data() } as SavedCharacter);
+      });
+      // Sort client-side or use composite index in Firestore
+      return items.sort((a, b) => b.timestamp - a.timestamp);
+    } catch (e) {
+      console.error("Error fetching user characters:", e);
+      return [];
+    }
   },
 
-  saveCharacter(email: string, image: GeneratedImage, prompt: string) {
-    const items = this.getAll();
-    const newItem: SavedCharacter = {
-      id: Date.now().toString(),
+  async saveCharacter(email: string, image: GeneratedImage, prompt: string) {
+    if (!db) throw new Error("Database not connected");
+    
+    const newItem: Omit<SavedCharacter, 'id'> = {
       userEmail: email,
       imageData: image.data,
       mimeType: image.mimeType,
@@ -30,28 +53,21 @@ export const characterStorage = {
       timestamp: Date.now()
     };
 
-    // Prepend new item
-    const newItems = [newItem, ...items];
-
-    // Safety check for localStorage limits (approximate check)
-    // If array gets too big, we might want to limit it. 
-    // For this demo, let's keep it simple but handle quotas.
     try {
-      localStorage.setItem(GALLERY_STORAGE_KEY, JSON.stringify(newItems));
+      await addDoc(collection(db, COLLECTION_NAME), newItem);
     } catch (e) {
-      // If quota exceeded, try removing oldest items specifically for this user or globally
-      if (newItems.length > 10) {
-         // Keep only last 10 global items as a fallback to prevent crash
-         localStorage.setItem(GALLERY_STORAGE_KEY, JSON.stringify(newItems.slice(0, 10)));
-         throw new Error("저장 공간이 가득 차서 오래된 항목이 삭제되었습니다.");
-      } else {
-         throw new Error("브라우저 저장 공간이 부족하여 저장할 수 없습니다.");
-      }
+      console.error("Error saving character:", e);
+      throw new Error("캐릭터 저장 중 오류가 발생했습니다.");
     }
   },
 
-  deleteCharacter(id: string) {
-    const items = this.getAll().filter(item => item.id !== id);
-    localStorage.setItem(GALLERY_STORAGE_KEY, JSON.stringify(items));
+  async deleteCharacter(id: string) {
+    if (!db) return;
+    try {
+      await deleteDoc(doc(db, COLLECTION_NAME, id));
+    } catch (e) {
+      console.error("Error deleting character:", e);
+      throw new Error("삭제 중 오류가 발생했습니다.");
+    }
   }
 };

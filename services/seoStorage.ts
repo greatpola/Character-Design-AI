@@ -1,7 +1,7 @@
 
 import { SeoConfig } from '../types';
-import { initializeApp, getApps, getApp } from 'firebase/app';
-import { getFirestore, doc, getDoc, setDoc } from 'firebase/firestore';
+import { db } from './firebase';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
 
 const SEO_STORAGE_KEY = 'character_studio_seo';
 const FIRESTORE_COLLECTION = 'settings';
@@ -14,34 +14,6 @@ const DEFAULT_SEO: SeoConfig = {
   author: 'Character Studio AI',
   supportLink: 'https://buy.stripe.com/28E5kDgVC9dl6AE8Wy'
 };
-
-// Initialize Firebase for Global Sync
-// We check if environment variables are available to enable cloud sync.
-let db: any = null;
-try {
-  // Only attempt init if API key is present, preventing crashes in environments without config
-  // @ts-ignore
-  if (typeof process !== 'undefined' && process.env && process.env.FIREBASE_API_KEY) {
-      const firebaseConfig = {
-          // @ts-ignore
-          apiKey: process.env.FIREBASE_API_KEY,
-          // @ts-ignore
-          authDomain: process.env.FIREBASE_AUTH_DOMAIN,
-          // @ts-ignore
-          projectId: process.env.FIREBASE_PROJECT_ID,
-          // @ts-ignore
-          storageBucket: process.env.FIREBASE_STORAGE_BUCKET,
-          // @ts-ignore
-          messagingSenderId: process.env.FIREBASE_MESSAGING_SENDER_ID,
-          // @ts-ignore
-          appId: process.env.FIREBASE_APP_ID
-      };
-      const app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
-      db = getFirestore(app);
-  }
-} catch (e) {
-  console.warn("SEO Storage: Global sync unavailable (Firebase not configured). Falling back to local storage.", e);
-}
 
 export const seoStorage = {
   getSeoConfig(): SeoConfig {
@@ -56,7 +28,10 @@ export const seoStorage = {
   // Fetch from Cloud and update Local Storage (Async)
   // This ensures all users get the Admin's settings
   async fetchAndSync(): Promise<void> {
-    if (!db) return;
+    if (!db) {
+      // If Firestore isn't available (e.g. no API key), just return
+      return;
+    }
 
     try {
       const docRef = doc(db, FIRESTORE_COLLECTION, FIRESTORE_DOC_ID);

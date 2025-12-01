@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { User } from '../types';
 import { userManager } from '../services/userManager';
-import { ChevronRight, User as UserIcon, Lock, Mail } from 'lucide-react';
+import { ChevronRight, User as UserIcon, Lock, Mail, Loader2 } from 'lucide-react';
 
 interface LoginProps {
   onLogin: (user: User) => void;
@@ -16,20 +16,24 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
   const [nickname, setNickname] = useState('');
   const [agreed, setAgreed] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+    setIsLoading(true);
 
     const cleanEmail = email.trim();
     const cleanNickname = nickname.trim();
 
     if (!cleanEmail) {
       setError("이메일 주소를 입력해주세요.");
+      setIsLoading(false);
       return;
     }
     if (!password) {
       setError("비밀번호를 입력해주세요.");
+      setIsLoading(false);
       return;
     }
 
@@ -42,16 +46,20 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
         // --- SIGN UP FLOW ---
         if (!cleanNickname) {
           setError("사용하실 닉네임을 입력해주세요.");
+          setIsLoading(false);
           return;
         }
         if (!agreed) {
           setError("서비스 이용을 위해 마케팅 정보 활용에 동의해야 합니다.");
+          setIsLoading(false);
           return;
         }
         
-        // Check if user already exists before trying to register
-        if (userManager.checkUserExists(cleanEmail)) {
+        // Check if user already exists
+        const exists = await userManager.checkUserExists(cleanEmail);
+        if (exists) {
            setError("이미 가입된 이메일입니다. 로그인 탭을 이용해주세요.");
+           setIsLoading(false);
            return;
         }
 
@@ -60,13 +68,15 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
       }
     } catch (err: any) {
       setError(err.message || "오류가 발생했습니다.");
+    } finally {
+      setIsLoading(false);
     }
   };
 
   const toggleView = (isLogin: boolean) => {
     setIsLoginView(isLogin);
     setError(null);
-    setPassword(''); // Clear password for security/UX context switch
+    setPassword(''); 
   };
 
   return (
@@ -179,10 +189,12 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
               {/* Submit Button */}
               <button
                 type="submit"
-                className="w-full py-3.5 rounded-xl font-bold text-white bg-blue-600 hover:bg-blue-700 transition-all shadow-lg shadow-blue-200 flex items-center justify-center gap-2"
+                disabled={isLoading}
+                className="w-full py-3.5 rounded-xl font-bold text-white bg-blue-600 hover:bg-blue-700 disabled:bg-slate-400 transition-all shadow-lg shadow-blue-200 flex items-center justify-center gap-2"
               >
+                {isLoading && <Loader2 className="w-4 h-4 animate-spin" />}
                 {isLoginView ? '로그인' : '무료로 회원가입'}
-                <ChevronRight className="w-4 h-4" />
+                {!isLoading && <ChevronRight className="w-4 h-4" />}
               </button>
            </form>
         </div>

@@ -66,8 +66,9 @@ function App() {
   const handleGenerate = async () => {
     if (!prompt.trim() || !user) return;
 
-    // Check Limits
-    if (!userManager.checkLimit(user.email, 'generation')) {
+    // Check Limits (Async check now)
+    const canProceed = await userManager.checkLimit(user.email, 'generation');
+    if (!canProceed) {
       alert(`생성 횟수 한도(${user.maxGenerations}회)를 초과했습니다. 관리자에게 문의하세요.`);
       return;
     }
@@ -83,9 +84,12 @@ function App() {
       
       // Track usage
       await userManager.incrementActivity(user.email, 'generation');
-      // Refresh user data
-      const updatedUser = userManager.getUser(user.email);
-      if(updatedUser) setUser(updatedUser);
+      // Refresh user data from DB to get updated counts
+      const updatedUser = await userManager.getUser(user.email);
+      if(updatedUser) {
+        setUser(updatedUser);
+        userManager.saveSession(updatedUser); // Update session too
+      }
       
     } catch (e) {
       console.error(e);
@@ -98,7 +102,8 @@ function App() {
     if (!editPrompt.trim() || !currentImage || !user) return;
 
     // Check Limits
-    if (!userManager.checkLimit(user.email, 'edit')) {
+    const canProceed = await userManager.checkLimit(user.email, 'edit');
+    if (!canProceed) {
       alert(`수정 횟수 한도(${user.maxEdits}회)를 초과했습니다. 관리자에게 문의하세요.`);
       return;
     }
@@ -114,8 +119,12 @@ function App() {
       
       // Track usage
       await userManager.incrementActivity(user.email, 'edit');
-      const updatedUser = userManager.getUser(user.email);
-      if(updatedUser) setUser(updatedUser);
+      // Refresh user data
+      const updatedUser = await userManager.getUser(user.email);
+      if(updatedUser) {
+        setUser(updatedUser);
+        userManager.saveSession(updatedUser);
+      }
 
     } catch (e) {
       console.error(e);
@@ -134,10 +143,10 @@ function App() {
     document.body.removeChild(link);
   };
 
-  const handleSaveToGallery = () => {
+  const handleSaveToGallery = async () => {
     if (!currentImage || !user) return;
     try {
-      characterStorage.saveCharacter(user.email, currentImage, prompt);
+      await characterStorage.saveCharacter(user.email, currentImage, prompt);
       alert("마이페이지 보관함에 저장되었습니다!");
     } catch (e: any) {
       alert(e.message);
@@ -150,8 +159,11 @@ function App() {
 
   const handleSupportDeveloper = () => {
     const config = seoStorage.getSeoConfig();
-    const link = config.supportLink || 'https://buy.stripe.com/28E5kDgVC9dl6AE8Wy';
-    window.open(link, '_blank');
+    if (!config.supportLink) {
+      alert("개발자 응원하기 링크가 설정되지 않았습니다.");
+      return;
+    }
+    window.open(config.supportLink, '_blank');
   };
 
   // 1. Not Logged In -> Show Login Screen

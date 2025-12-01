@@ -4,7 +4,7 @@ import { User, SavedCharacter, Message } from '../types';
 import { characterStorage } from '../services/characterStorage';
 import { messageStorage } from '../services/messageStorage';
 import { ShareMenu } from './ShareMenu';
-import { Calendar, Activity, LogIn, Download, Trash2, ArrowLeft, Image as ImageIcon, Send, MessageSquare, User as UserIcon, Shield } from 'lucide-react';
+import { Calendar, Activity, LogIn, Download, Trash2, ArrowLeft, Image as ImageIcon, Send, MessageSquare, User as UserIcon, Shield, Loader2 } from 'lucide-react';
 
 interface MyPageProps {
   user: User;
@@ -17,6 +17,7 @@ export const MyPage: React.FC<MyPageProps> = ({ user, onBack, onLogout }) => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState('');
   const [isSending, setIsSending] = useState(false);
+  const [isLoadingChars, setIsLoadingChars] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -28,21 +29,28 @@ export const MyPage: React.FC<MyPageProps> = ({ user, onBack, onLogout }) => {
     scrollToBottom();
   }, [messages]);
 
-  const loadCharacters = () => {
-    setSavedCharacters(characterStorage.getUserCharacters(user.email));
+  const loadCharacters = async () => {
+    setIsLoadingChars(true);
+    try {
+      const chars = await characterStorage.getUserCharacters(user.email);
+      setSavedCharacters(chars);
+    } finally {
+      setIsLoadingChars(false);
+    }
   };
 
-  const loadMessages = () => {
-    setMessages(messageStorage.getConversation(user.email));
+  const loadMessages = async () => {
+    const msgs = await messageStorage.getConversation(user.email);
+    setMessages(msgs);
   };
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
 
-  const handleDelete = (id: string) => {
+  const handleDelete = async (id: string) => {
     if (window.confirm('정말로 이 캐릭터를 삭제하시겠습니까?')) {
-      characterStorage.deleteCharacter(id);
+      await characterStorage.deleteCharacter(id);
       loadCharacters();
     }
   };
@@ -56,14 +64,14 @@ export const MyPage: React.FC<MyPageProps> = ({ user, onBack, onLogout }) => {
     document.body.removeChild(link);
   };
 
-  const handleSendMessage = (e: React.FormEvent) => {
+  const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newMessage.trim()) return;
 
     setIsSending(true);
     try {
       // Send to Admin ID
-      messageStorage.sendMessage(user.email, 'media@greatpola.com', 'user', newMessage);
+      await messageStorage.sendMessage(user.email, 'media@greatpola.com', 'user', newMessage);
       setNewMessage('');
       loadMessages();
     } catch (error) {
@@ -230,7 +238,9 @@ export const MyPage: React.FC<MyPageProps> = ({ user, onBack, onLogout }) => {
             <h2 className="text-xl font-bold text-slate-800">나의 캐릭터 보관함</h2>
           </div>
 
-          {savedCharacters.length === 0 ? (
+          {isLoadingChars ? (
+            <div className="p-12 flex justify-center"><Loader2 className="w-8 h-8 animate-spin text-blue-600"/></div>
+          ) : savedCharacters.length === 0 ? (
             <div className="bg-white rounded-2xl border border-dashed border-slate-300 p-12 text-center text-slate-400">
               <p>아직 저장된 캐릭터가 없습니다.</p>
               <p className="text-sm mt-2">새로운 캐릭터를 생성하고 '저장하기'를 눌러보세요!</p>

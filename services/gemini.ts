@@ -1,32 +1,17 @@
+
 import { GoogleGenAI } from "@google/genai";
 import { GeneratedImage } from "../types";
+import { CONFIG } from "../config";
 
 // Using the latest Nano Banana 2 (Gemini 3 Pro Image) for high quality character sheets
 const MODEL_NAME = 'gemini-3-pro-image-preview';
-
-const getApiKey = (): string => {
-  // Safe check for process.env to avoid "process is not defined" errors in browser environments
-  try {
-    // @ts-ignore
-    if (typeof process !== 'undefined' && process.env && process.env.API_KEY) {
-      // @ts-ignore
-      return process.env.API_KEY;
-    }
-  } catch (e) {
-    // ignore error if process is undefined
-  }
-  
-  // API Key must be provided via environment variables for security.
-  // Do not hardcode keys in source files.
-  return '';
-};
 
 /**
  * Generates a comprehensive character brand sheet.
  * Includes: Story, Basic Type, Turnaround, Motion, and Application Mockups.
  */
 export const generateCharacterSheet = async (userPrompt: string): Promise<GeneratedImage> => {
-  const apiKey = getApiKey();
+  const apiKey = CONFIG.API_KEY;
   if (!apiKey) {
     throw new Error("API Key가 설정되지 않았습니다. 관리자에게 문의하거나 환경 변수를 확인해주세요.");
   }
@@ -114,7 +99,7 @@ export const editCharacterSheet = async (
   currentImage: GeneratedImage,
   editPrompt: string
 ): Promise<GeneratedImage> => {
-  const apiKey = getApiKey();
+  const apiKey = CONFIG.API_KEY;
   if (!apiKey) {
     throw new Error("API Key가 설정되지 않았습니다. 관리자에게 문의하거나 환경 변수를 확인해주세요.");
   }

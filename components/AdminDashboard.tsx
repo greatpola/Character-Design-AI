@@ -16,6 +16,7 @@ type Tab = 'users' | 'messages' | 'seo';
 export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout, onBack }) => {
   const [activeTab, setActiveTab] = useState<Tab>('users');
   const [users, setUsers] = useState<User[]>([]);
+  const [loading, setLoading] = useState(false);
   
   // Message System States
   const [senders, setSenders] = useState<string[]>([]);
@@ -46,30 +47,38 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout, onBack
     scrollToBottom();
   }, [chatHistory]);
 
-  const loadData = () => {
-    if (activeTab === 'users') {
-      setUsers(userManager.getAllUsers().sort((a, b) => b.joinedAt - a.joinedAt));
-    } else if (activeTab === 'messages') {
-      setSenders(messageStorage.getUniqueSenders());
-    } else if (activeTab === 'seo') {
-      // Fetch latest from cloud when entering SEO tab
-      seoStorage.fetchAndSync().then(() => {
-         setSeoConfig(seoStorage.getSeoConfig());
-      });
+  const loadData = async () => {
+    setLoading(true);
+    try {
+      if (activeTab === 'users') {
+        const allUsers = await userManager.getAllUsers();
+        setUsers(allUsers.sort((a, b) => b.joinedAt - a.joinedAt));
+      } else if (activeTab === 'messages') {
+        const allSenders = await messageStorage.getUniqueSenders();
+        setSenders(allSenders);
+      } else if (activeTab === 'seo') {
+        await seoStorage.fetchAndSync();
+        setSeoConfig(seoStorage.getSeoConfig());
+      }
+    } catch (e) {
+      console.error("Failed to load data", e);
+    } finally {
+      setLoading(false);
     }
   };
 
-  const loadChatHistory = (email: string) => {
-    setChatHistory(messageStorage.getConversation(email));
+  const loadChatHistory = async (email: string) => {
+    const history = await messageStorage.getConversation(email);
+    setChatHistory(history);
   };
 
   const scrollToBottom = () => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
 
-  const handleDeleteUser = (email: string) => {
+  const handleDeleteUser = async (email: string) => {
     if (window.confirm(`${email} 사용자를 정말 삭제하시겠습니까?`)) {
-      userManager.removeUser(email);
+      await userManager.removeUser(email);
       loadData();
     }
   };
@@ -96,12 +105,11 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout, onBack
     }
   };
 
-  const handleSendReply = (e: React.FormEvent) => {
+  const handleSendReply = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!replyMessage.trim() || !selectedSender) return;
 
-    // Admin sending message to selectedSender
-    messageStorage.sendMessage('media@greatpola.com', selectedSender, 'admin', replyMessage);
+    await messageStorage.sendMessage('media@greatpola.com', selectedSender, 'admin', replyMessage);
     setReplyMessage('');
     loadChatHistory(selectedSender);
   };
@@ -113,7 +121,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout, onBack
       await seoStorage.saveSeoConfig(seoConfig);
       alert('설정이 저장되었으며 사이트 전체에 적용되었습니다.');
     } catch (err: any) {
-      // Show explicit error if cloud sync fails
       alert(`오류: ${err.message || '설정 저장 중 문제가 발생했습니다.'}`);
     } finally {
       setIsSavingSeo(false);
@@ -138,7 +145,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout, onBack
   };
 
   const getNickname = (email: string) => {
-    const user = userManager.getUser(email);
+    // Ideally pass users map or find in users array. 
+    // Since users might not be loaded if in messages tab, we try best effort or just show email.
+    // For now, if users are loaded, we use them.
+    const user = users.find(u => u.email === email);
     return user ? user.nickname : email;
   };
 
@@ -234,7 +244,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout, onBack
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {users.length === 0 ? (
+                  {loading ? (
+                    <tr><td colSpan={6} className="px-6 py-12 text-center text-slate-400"><Loader2 className="w-6 h-6 animate-spin mx-auto"/></td></tr>
+                  ) : users.length === 0 ? (
                     <tr>
                       <td colSpan={6} className="px-6 py-12 text-center text-slate-400">
                         등록된 사용자가 없습니다.
@@ -300,14 +312,13 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout, onBack
                 </h3>
               </div>
               <div className="flex-grow overflow-y-auto">
-                {senders.length === 0 ? (
+                {loading ? <div className="p-8 text-center"><Loader2 className="w-6 h-6 animate-spin mx-auto"/></div> :
+                senders.length === 0 ? (
                   <div className="p-8 text-center text-slate-400 text-sm">
                     아직 문의가 없습니다.
                   </div>
                 ) : (
-                  senders.map(email => {
-                    const nick = getNickname(email);
-                    return (
+                  senders.map(email => (
                       <button
                         key={email}
                         onClick={() => setSelectedSender(email)}
@@ -317,12 +328,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout, onBack
                       >
                         <div className="flex items-center gap-2 mb-1">
                           <UserIcon className="w-4 h-4 text-slate-400" />
-                          <span className="font-bold text-slate-800 truncate">{nick}</span>
+                          <span className="font-bold text-slate-800 truncate">{email}</span>
                         </div>
-                        <p className="text-xs text-slate-400 truncate mb-1">{email}</p>
                       </button>
-                    );
-                  })
+                  ))
                 )}
               </div>
             </div>
@@ -336,8 +345,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout, onBack
                       <UserIcon className="w-5 h-5" />
                     </div>
                     <div>
-                      <h3 className="font-bold text-slate-900">{getNickname(selectedSender)}</h3>
-                      <p className="text-xs text-slate-500">{selectedSender}</p>
+                      <h3 className="font-bold text-slate-900">{selectedSender}</h3>
                     </div>
                   </div>
 
@@ -358,7 +366,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout, onBack
                                     관리자 (나)
                                   </div>
                                ) : (
-                                  <span className="text-xs text-slate-500">{getNickname(selectedSender)}</span>
+                                  <span className="text-xs text-slate-500">{selectedSender}</span>
                                )}
                              </div>
                              <p className="text-sm whitespace-pre-wrap leading-relaxed">{msg.content}</p>
@@ -399,9 +407,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout, onBack
           </div>
         )}
 
+        {/* SEO Tab Content (Same as before, using new state logic) */}
         {activeTab === 'seo' && (
           <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden animate-in fade-in slide-in-from-bottom-2 duration-300">
-             {/* Same SEO Form as before */}
             <div className="p-6 border-b border-slate-100">
               <h2 className="text-lg font-bold text-slate-800 flex items-center gap-2">
                 <Globe className="w-5 h-5 text-blue-600" />
