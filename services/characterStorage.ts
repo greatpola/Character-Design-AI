@@ -1,5 +1,5 @@
 
-import { GeneratedImage, SavedCharacter } from '../types';
+import { GeneratedImage, SavedCharacter, GenerationMode } from '../types';
 import { db } from './firebase';
 import { collection, addDoc, getDocs, query, where, deleteDoc, doc, orderBy } from 'firebase/firestore';
 
@@ -13,7 +13,7 @@ export const characterStorage = {
       const snapshot = await getDocs(q);
       const items: SavedCharacter[] = [];
       snapshot.forEach(doc => {
-        items.push({ id: doc.id, ...doc.data() } as SavedCharacter);
+        items.push({ id: doc.id, ...(doc.data() as any) } as SavedCharacter);
       });
       return items;
     } catch (e) {
@@ -32,7 +32,7 @@ export const characterStorage = {
       const snapshot = await getDocs(q);
       const items: SavedCharacter[] = [];
       snapshot.forEach(doc => {
-        items.push({ id: doc.id, ...doc.data() } as SavedCharacter);
+        items.push({ id: doc.id, ...(doc.data() as any) } as SavedCharacter);
       });
       // Sort client-side or use composite index in Firestore
       return items.sort((a, b) => b.timestamp - a.timestamp);
@@ -42,7 +42,7 @@ export const characterStorage = {
     }
   },
 
-  async saveCharacter(email: string, image: GeneratedImage, prompt: string) {
+  async saveCharacter(email: string, image: GeneratedImage, prompt: string, mode?: GenerationMode) {
     if (!db) throw new Error("Database not connected");
     
     const newItem: Omit<SavedCharacter, 'id'> = {
@@ -50,7 +50,8 @@ export const characterStorage = {
       imageData: image.data,
       mimeType: image.mimeType,
       prompt: prompt,
-      timestamp: Date.now()
+      timestamp: Date.now(),
+      mode: mode
     };
 
     try {

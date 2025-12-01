@@ -12,6 +12,14 @@ export enum AppState {
   ERROR = 'ERROR'
 }
 
+export type GenerationMode = 
+  | 'brand_sheet'      // 기존 캐릭터 시트
+  | 'ad_storyboard'    // 광고 스토리보드
+  | 'ani_storyboard'   // 애니메이션 스토리보드
+  | 'goods'            // 굿즈 패키지
+  | 'emoticon'         // 이모티콘 세트
+  | 'moving_emoticon'; // 움직이는 이모티콘 (스프라이트 시트)
+
 export interface HistoryItem {
   id: string;
   image: GeneratedImage;
@@ -29,13 +37,15 @@ export interface User {
   marketingAgreed?: boolean;
   loginCount?: number;
   
-  // Group and Limits
-  group: string;        // e.g., 'basic', 'pro', 'vip'
+  // Credits System
+  credits: number;
+  hasPurchasedCredits?: boolean; // Track if user has ever purchased credits
+
+  // Legacy Fields (kept for backward compatibility or group info)
+  group: string;        
   maxGenerations: number;
   maxEdits: number;
-  
-  // Usage Tracking
-  generationCount: number; // Replaces generic usageCount
+  generationCount: number;
   editCount: number;
 }
 
@@ -46,6 +56,10 @@ export interface SavedCharacter {
   mimeType: string;
   prompt: string;
   timestamp: number;
+  imageUrl?: string;    // Firebase Storage URL
+  storagePath?: string; // Firebase Storage Path
+  mode?: GenerationMode;
+  memo?: string;
 }
 
 export interface Message {
@@ -63,4 +77,13 @@ export interface SeoConfig {
   keywords: string;
   author: string;
   supportLink?: string;
+}
+
+export interface CreditPackage {
+  id: string;
+  name: string;
+  credits: number;
+  price: number;
+  popular?: boolean;
+  link: string;
 }

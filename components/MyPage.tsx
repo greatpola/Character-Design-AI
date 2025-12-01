@@ -3,22 +3,29 @@ import React, { useState, useEffect, useRef } from 'react';
 import { User, SavedCharacter, Message } from '../types';
 import { characterStorage } from '../services/characterStorage';
 import { messageStorage } from '../services/messageStorage';
+import { userManager } from '../services/userManager';
 import { ShareMenu } from './ShareMenu';
-import { Calendar, Activity, LogIn, Download, Trash2, ArrowLeft, Image as ImageIcon, Send, MessageSquare, User as UserIcon, Shield, Loader2 } from 'lucide-react';
+import { Calendar, Activity, LogIn, Download, Trash2, ArrowLeft, Image as ImageIcon, Send, MessageSquare, User as UserIcon, Shield, Loader2, Edit2, Check, X } from 'lucide-react';
 
 interface MyPageProps {
   user: User;
   onBack: () => void;
   onLogout: () => void;
+  onUserUpdate: (updatedUser: User) => void;
 }
 
-export const MyPage: React.FC<MyPageProps> = ({ user, onBack, onLogout }) => {
+export const MyPage: React.FC<MyPageProps> = ({ user, onBack, onLogout, onUserUpdate }) => {
   const [savedCharacters, setSavedCharacters] = useState<SavedCharacter[]>([]);
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState('');
   const [isSending, setIsSending] = useState(false);
   const [isLoadingChars, setIsLoadingChars] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // Nickname Editing State
+  const [isEditingNickname, setIsEditingNickname] = useState(false);
+  const [editNicknameValue, setEditNicknameValue] = useState(user.nickname);
+  const [isSavingNickname, setIsSavingNickname] = useState(false);
 
   useEffect(() => {
     loadCharacters();
@@ -81,6 +88,27 @@ export const MyPage: React.FC<MyPageProps> = ({ user, onBack, onLogout }) => {
     }
   };
 
+  const handleSaveNickname = async () => {
+    if (!editNicknameValue.trim()) return;
+    setIsSavingNickname(true);
+    try {
+      await userManager.updateNickname(user.email, editNicknameValue.trim());
+      // Update local state and parent state
+      const updatedUser = { ...user, nickname: editNicknameValue.trim() };
+      onUserUpdate(updatedUser);
+      setIsEditingNickname(false);
+    } catch (e) {
+      alert("닉네임 수정 중 오류가 발생했습니다.");
+    } finally {
+      setIsSavingNickname(false);
+    }
+  };
+
+  const handleCancelEdit = () => {
+    setEditNicknameValue(user.nickname);
+    setIsEditingNickname(false);
+  };
+
   const formatDate = (timestamp: number) => {
     return new Date(timestamp).toLocaleDateString('ko-KR', {
       year: 'numeric',
@@ -108,11 +136,49 @@ export const MyPage: React.FC<MyPageProps> = ({ user, onBack, onLogout }) => {
           >
             <ArrowLeft className="w-6 h-6" />
           </button>
-          <div className="flex items-center gap-2">
+          
+          <div className="flex items-center gap-3">
              <h1 className="text-xl font-bold text-slate-800">마이 페이지</h1>
-             <span className="text-xs bg-slate-100 text-slate-500 px-2 py-1 rounded-full">
-               {user.nickname || user.email}
-             </span>
+             
+             {/* Nickname Section */}
+             {isEditingNickname ? (
+               <div className="flex items-center gap-1 animate-in fade-in">
+                 <input 
+                   type="text" 
+                   value={editNicknameValue}
+                   onChange={(e) => setEditNicknameValue(e.target.value)}
+                   className="bg-slate-50 border border-slate-300 rounded px-2 py-1 text-xs focus:ring-2 focus:ring-blue-500 outline-none w-32"
+                   autoFocus
+                 />
+                 <button 
+                   onClick={handleSaveNickname}
+                   disabled={isSavingNickname}
+                   className="p-1 bg-blue-100 text-blue-600 rounded hover:bg-blue-200"
+                 >
+                   {isSavingNickname ? <Loader2 className="w-4 h-4 animate-spin"/> : <Check className="w-4 h-4"/>}
+                 </button>
+                 <button 
+                   onClick={handleCancelEdit}
+                   className="p-1 bg-slate-100 text-slate-500 rounded hover:bg-slate-200"
+                 >
+                   <X className="w-4 h-4"/>
+                 </button>
+               </div>
+             ) : (
+               <div className="flex items-center gap-2 group">
+                 <span className="text-xs bg-slate-100 text-slate-500 px-2 py-1 rounded-full font-medium">
+                   {user.nickname}
+                 </span>
+                 <button 
+                   onClick={() => setIsEditingNickname(true)}
+                   className="text-slate-400 hover:text-blue-500 opacity-0 group-hover:opacity-100 transition-all"
+                   title="닉네임 수정"
+                 >
+                   <Edit2 className="w-3 h-3" />
+                 </button>
+               </div>
+             )}
+
              <span className={`text-xs px-2 py-1 rounded-full text-white uppercase font-bold
                 ${user.group === 'admin' ? 'bg-slate-800' : 'bg-blue-500'}`}>
                {user.group}

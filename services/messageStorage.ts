@@ -13,7 +13,7 @@ export const messageStorage = {
       const snapshot = await getDocs(q);
       const msgs: Message[] = [];
       snapshot.forEach(doc => {
-        msgs.push({ id: doc.id, ...doc.data() } as Message);
+        msgs.push({ id: doc.id, ...(doc.data() as any) } as Message);
       });
       return msgs;
     } catch (e) {
